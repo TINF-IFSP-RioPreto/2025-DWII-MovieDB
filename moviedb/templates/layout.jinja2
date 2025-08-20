@@ -1,0 +1,71 @@
+{% from 'bootstrap5/utils.html' import render_icon %}
+{% from 'navbar.jinja2' import barra_navegacao with context %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    {% block head %}
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        {{ bootstrap.load_css() }}
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+        {% block styles %}
+        {% endblock %}
+        {% if title %}
+            <title>{{ title }}</title>
+        {% else %}
+            <title>{{ app_config["APP_NAME"] }}</title>
+        {% endif %}
+    {% endblock %}
+</head>
+<body id="page-top" class="d-flex flex-column min-vh-100 mx-2 mt-3">
+{{ barra_navegacao() }}
+{% if jumbo %}
+    <div class="my-5">
+        <div class="p-5 text-center bg-body-tertiary">
+            <div class="container py-5">
+                <h1 class="text-body-emphasis">{{ jumbo }}</h1>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<main id="content" class="px-5">
+    <div class="container-fluid">
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<footer class="mt-auto pt-5 mt-5 bg-body-tertiary text-body-secondary">
+    <div class="container-fluid pb-4 px-5">
+        <div class="row">
+            <div class="col">
+                <img class="me-3 float-start" src="{{ url_for('static', filename='img/if.svg') }}"
+                     alt="Logotipo do IFSP" width="40"/>
+                <p class="fs-tiny text-start"><em>Aplicação desenvolvida no escopo
+                    da disciplina "Desenvolvimento Web II" do
+                    <a href="https://sjp.ifsp.edu.br/cursos-tecnicos/221-curso-tecnico-em-informatica"
+                       target="_blank">Curso Técnico em Informática</a> do Instituto Federal de
+                    Educação, Ciência e Tecnologia de São Paulo,
+                    <a href="https://sjp.ifsp.edu.br/" target="_blank">campus São José do Rio
+                        Preto</a>,
+                    durante o segundo semestre de 2025</em>
+                </p>
+            </div>
+            <div class="col text-end ms-auto">
+                <div class="d-md-none ms-3">
+                    <a class="d-inline scroll-to-top"
+                       href="#page-top">{{ render_icon('arrow-bar-up', size=16) }}</a>
+                </div>
+                <div class="d-none d-md-inline">
+                    <a class="d-inline scroll-to-top"
+                       href="#page-top">{{ render_icon('arrow-bar-up', size=32) }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+{{ bootstrap.load_js() }}
+{% block scripts %}
+{% endblock %}
+</body>
+</html>
