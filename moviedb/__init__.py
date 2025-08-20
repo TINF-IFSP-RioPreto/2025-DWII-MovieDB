@@ -7,6 +7,7 @@ import sys
 from flask import Flask
 
 from moviedb.infra import app_logging
+from moviedb.infra.modulos import bootstrap
 
 
 def create_app(config_filename: str = 'config.dev.json') -> Flask:
@@ -30,5 +31,18 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     except FileNotFoundError:
         app.logger.fatal("O arquivo de configuração '%s' não existe" % (config_filename))
         sys.exit(1)
+
+    app.logger.debug("Registrando modulos")
+    bootstrap.init_app(app)
+
+    app.logger.debug("Registrando blueprints")
+    from moviedb.blueprints.root import bp as root_bp
+    app.register_blueprint(root_bp)
+
+    app.logger.debug("Definindo processadores de contexto")
+
+    @app.context_processor
+    def inject_globals():
+        return dict(app_config=app.config)
 
     return app
