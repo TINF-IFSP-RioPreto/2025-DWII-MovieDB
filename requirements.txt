@@ -10,4 +10,11 @@ flask-login==0.6.3
 # https://flask-wtf.readthedocs.io/en/1.2.x/
 Flask-WTF==1.2.2
 # Para permitir validação de emails no WTForms
+# https://github.com/JoshData/python-email-validator
 email-validator==2.3.0
+# Para gerar JWTs
+# https://pyjwt.readthedocs.io/en/stable/
+PyJWT==2.10.1
+# Para enviar email
+# https://postmarker.readthedocs.io/en/latest/
+postmarker==1.0
