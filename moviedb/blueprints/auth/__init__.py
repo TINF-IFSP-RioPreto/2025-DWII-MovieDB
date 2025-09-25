@@ -14,12 +14,13 @@ from moviedb.infra.tokens import create_jwt_token, verify_jwt_token
 from moviedb.models.autenticacao import normalizar_email, User
 from moviedb.models.enumeracoes import Autenticacao2FA, JWT_action
 
-bp = Blueprint(name='auth',
-               import_name=__name__,
-               url_prefix='/auth')
+auth_bp = Blueprint(name='auth',
+                    import_name=__name__,
+                    url_prefix='/auth',
+                    template_folder="templates", )
 
 
-@bp.route('/register', methods=['GET', 'POST'])
+@auth_bp.route('/register', methods=['GET', 'POST'])
 @anonymous_required
 def register():
     """
@@ -50,7 +51,7 @@ def register():
         db.session.refresh(usuario)
         token = create_jwt_token(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
         current_app.logger.debug("Token de validação de email: %s" % (token,))
-        body = render_template('auth/email_confirmation.jinja2',
+        body = render_template('auth/email/email_confirmation.jinja2',
                                nome=usuario.nome,
                                url=url_for('auth.valida_email', token=token))
         if not usuario.send_email(subject="Confirme o seu email", body=body):
@@ -60,12 +61,12 @@ def register():
               "no sistema", category='success')
         return redirect(url_for('root.index'))
 
-    return render_template('auth/register.jinja2',
+    return render_template('auth/web/register.jinja2',
                            title="Cadastrar um novo usuário",
                            form=form)
 
 
-@bp.route('/revalida_email/<uuid:user_id>')
+@auth_bp.route('/revalida_email/<uuid:user_id>')
 @anonymous_required
 def revalida_email(user_id):
     """
@@ -99,7 +100,7 @@ def revalida_email(user_id):
 
     token = create_jwt_token(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
     current_app.logger.debug("Token de validação de email: %s" % (token,))
-    body = render_template('auth/email_confirmation.jinja2',
+    body = render_template('auth/email/email_confirmation.jinja2',
                            nome=usuario.nome,
                            url=url_for('auth.valida_email', token=token))
     if not usuario.send_email(subject="Confirme o seu email", body=body):
@@ -110,7 +111,7 @@ def revalida_email(user_id):
     return redirect(url_for('auth.login'))
 
 
-@bp.route('/login', methods=['GET', 'POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 @anonymous_required
 def login():
     """
@@ -168,12 +169,12 @@ def login():
             next_page = url_for('root.index')
         return redirect(next_page)
 
-    return render_template('auth/login.jinja2',
+    return render_template('auth/web/login.jinja2',
                            title="Login",
                            form=form)
 
 
-@bp.route('/get2fa', methods=['GET', 'POST'])
+@auth_bp.route('/get2fa', methods=['GET', 'POST'])
 @anonymous_required
 def get2fa():
     """
@@ -246,7 +247,7 @@ def get2fa():
             usuario.id, request.remote_addr,))
         flash("Código incorreto. Tente novamente", category='warning')
 
-    return render_template('auth/2fa.jinja2',
+    return render_template('auth/web/2fa.jinja2',
                            title="Login",
                            title_card="Segundo fator de autenticação",
                            subtitle_card="Digite o código do segundo fator de autenticação que "
@@ -255,7 +256,7 @@ def get2fa():
                            form=form)
 
 
-@bp.route('/logout')
+@auth_bp.route('/logout')
 @login_required
 def logout():
     """
@@ -273,7 +274,7 @@ def logout():
     return redirect(url_for('root.index'))
 
 
-@bp.route('/valida_email/<token>')
+@auth_bp.route('/valida_email/<token>')
 @anonymous_required
 def valida_email(token):
     """
@@ -309,7 +310,7 @@ def valida_email(token):
     return redirect(url_for('auth.login'))
 
 
-@bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+@auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 @anonymous_required
 def reset_password(token):
     """
@@ -341,7 +342,7 @@ def reset_password(token):
             db.session.commit()
             flash("Sua senha foi redefinida com sucesso", category='success')
             return redirect(url_for('auth.login'))
-        return render_template('auth/simple_form.jinja2',
+        return render_template('auth/web/simple_form.jinja2',
                                title_card="Escolha uma nova senha",
                                form=form)
     # token não é de reset_password ou é para um usuário inexistente
@@ -349,7 +350,7 @@ def reset_password(token):
     return redirect(url_for('root.index'))
 
 
-@bp.route('/new_password', methods=['GET', 'POST'])
+@auth_bp.route('/new_password', methods=['GET', 'POST'])
 @anonymous_required
 def new_password():
     """
@@ -377,7 +378,7 @@ def new_password():
         if usuario is not None:
             token = create_jwt_token(JWT_action.RESET_PASSWORD,
                                      sub=usuario.email)
-            body = render_template('auth/email_new_password.jinja2',
+            body = render_template('auth/email/email_new_password.jinja2',
                                    nome=usuario.nome,
                                    url=url_for('auth.reset_password', token=token))
             usuario.send_email(subject="Altere a sua senha", body=body)
@@ -385,7 +386,7 @@ def new_password():
         current_app.logger.warning(
                 "Pedido de reset de senha para usuário inexistente (%s)" % (email,))
         return redirect(url_for('auth.login'))
-    return render_template('auth/simple_form.jinja2',
+    return render_template('auth/web/simple_form.jinja2',
                            title="Esqueci minha senha",
                            title_card="Esqueci minha senha",
                            subtitle_card="Digite o seu email cadastrado no sistema para "
@@ -393,7 +394,7 @@ def new_password():
                            form=form)
 
 
-@bp.route('/<uuid:id_usuario>/imagem/<size>', methods=['GET'])
+@auth_bp.route('/<uuid:id_usuario>/imagem/<size>', methods=['GET'])
 @login_required
 def imagem(id_usuario, size):
     """
@@ -424,8 +425,8 @@ def imagem(id_usuario, size):
     return Response(imagem_content, mimetype=imagem_type)
 
 
-@bp.route('/', methods=['GET', 'POST'])
-@bp.route('/profile', methods=['GET', 'POST'])
+@auth_bp.route('/', methods=['GET', 'POST'])
+@auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     """
@@ -481,13 +482,13 @@ def profile():
         return redirect(url_for("root.index"))
 
     return render_template(
-            'auth/profile.jinja2',
+            'auth/web/profile.jinja2',
             title="Perfil do usuário",
             title_card="Alterando os seus dados pessoais",
             form=form)
 
 
-@bp.route('enable_2fa', methods=['GET', 'POST'])
+@auth_bp.route('enable_2fa', methods=['GET', 'POST'])
 @login_required
 def enable_2fa():
     """
@@ -522,7 +523,7 @@ def enable_2fa():
                              "tiver o seu autenticador disponível.</p>"
                              "<p><strong>Eles serão mostrados apenas esta vez!</strong></p>")
 
-            return render_template('auth/show_2fa_backup.jinja2',
+            return render_template('auth/web/show_2fa_backup.jinja2',
                                    codigos=codigos,
                                    title="Códigos reserva",
                                    title_card="Códigos reserva para segundo fator de autenticação",
@@ -537,7 +538,7 @@ def enable_2fa():
             flash("O código informado está incorreto. Tente novamente.", category='warning')
         return redirect(url_for('auth.enable_2fa'))
 
-    return render_template('auth/enable_2fa.jinja2',
+    return render_template('auth/web/enable_2fa.jinja2',
                            title="Ativação do 2FA",
                            title_card="Ativação do segundo fator de autenticação",
                            form=form,

@@ -97,8 +97,8 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     login_manager.init_app(app)
 
     app.logger.debug("Registrando blueprints")
-    from moviedb.blueprints.root import bp as root_bp
-    from moviedb.blueprints.auth import bp as auth_bp
+    from blueprints.root import root_bp
+    from blueprints.auth import auth_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(root_bp)
 

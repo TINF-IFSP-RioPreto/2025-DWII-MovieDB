@@ -17,6 +17,8 @@
     <option name="TEMPLATE_FOLDERS">
       <list>
         <option value="$MODULE_DIR$/moviedb/templates" />
+        <option value="$MODULE_DIR$/moviedb/blueprints/auth/templates" />
+        <option value="$MODULE_DIR$/moviedb/blueprints/root/templates" />
       </list>
     </option>
   </component>
