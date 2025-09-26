@@ -96,6 +96,14 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     migrate.init_app(app, db, compare_type=True)
     login_manager.init_app(app)
 
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = "É necessário estar logado para acessar esta funcionalidade"
+    login_manager.login_message_category = 'warning'
+    login_manager.refresh_view = 'auth.login'
+    login_manager.needs_refresh_message = ("Para proteger a sua conta, é necessário "
+                                           "logar novamente antes de acessar esta funcionalidade")
+    login_manager.needs_refresh_message_category = "info"
+
     app.logger.debug("Registrando blueprints")
     from blueprints.root import root_bp
     from blueprints.auth import auth_bp

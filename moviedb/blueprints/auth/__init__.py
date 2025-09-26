@@ -3,7 +3,7 @@ from uuid import UUID
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, Response, \
     session, url_for
-from flask_login import current_user, login_required, login_user, logout_user
+from flask_login import current_user, fresh_login_required, login_required, login_user, logout_user
 from markupsafe import Markup
 
 from moviedb import anonymous_required, db
@@ -197,7 +197,7 @@ def get2fa():
     if not pending_2fa_token:
         current_app.logger.warning(
                 "Tentativa de acesso 2FA não autorizado a partir do IP %s" % (request.remote_addr,))
-        flash("Acesso negado. Reinicie o processo de login.", category='error')
+        flash("Acesso negado. Reinicie o processo de login.", category='danger')
         return redirect(url_for('auth.login'))
 
     dados_token = verify_jwt_token(pending_2fa_token)
@@ -427,7 +427,7 @@ def imagem(id_usuario, size):
 
 @auth_bp.route('/', methods=['GET', 'POST'])
 @auth_bp.route('/profile', methods=['GET', 'POST'])
-@login_required
+@fresh_login_required
 def profile():
     """
     Exibe e processa o formulário de edição do perfil do usuário autenticado.

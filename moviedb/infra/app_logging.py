@@ -23,9 +23,9 @@ class MainConsoleFormatter(logging.Formatter):
     YELLOW = "\x1b[33m"  # Yellow
     RED = "\x1b[31m"  # Red
     RESET = "\x1b[0m"  # Reset
-    # FORMAT = "%(asctime)s - %(levelname)s - %(pathname)s:%(lineno)d - %(funcName)s() - %(message)s"
-    # FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
     FORMAT = "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s"
+    # FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+    # FORMAT = "%(asctime)s - %(levelname)s - %(filename)-15s:%(funcName)20s():%(lineno)04s - %(message)s"
 
     FORMATS = {
         logging.DEBUG   : GREY + FORMAT + RESET,

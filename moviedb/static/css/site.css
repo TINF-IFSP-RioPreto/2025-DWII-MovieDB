@@ -1,3 +1,8 @@
 .fs-tiny {
     font-size: 11px;
 }
+
+.alert-half {
+    width: 50%;
+    margin: 0 auto;
+}
