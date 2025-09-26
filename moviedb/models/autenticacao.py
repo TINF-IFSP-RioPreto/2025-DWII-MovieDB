@@ -2,6 +2,7 @@ import io
 import secrets
 import uuid
 from base64 import b64decode, b64encode
+from datetime import datetime
 from io import BytesIO
 from typing import Optional
 
@@ -10,12 +11,13 @@ from flask import current_app
 from flask_login import UserMixin
 from PIL import Image
 from qrcode.main import QRCode
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, select, String, Text, Uuid
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, ForeignKey, select, String, Text, Uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from moviedb import db
-from moviedb.models.enumeracoes import Autenticacao2FA
-from moviedb.models.mixins import BasicRepositoryMixin
+from .custom_types import EncryptedType
+from .enumeracoes import Autenticacao2FA
+from .mixins import BasicRepositoryMixin, AuditMixin
 
 
 def normalizar_email(email: str) -> Optional[str]:
@@ -39,34 +41,39 @@ def normalizar_email(email: str) -> Optional[str]:
         return None
 
 
-class User(db.Model, BasicRepositoryMixin, UserMixin):
+class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
     __tablename__ = "usuarios"
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nome = Column(String(60), nullable=False)
-    email_normalizado = Column(String(180), nullable=False, unique=True, index=True)
-    password_hash = Column(String(256), nullable=False)
-    ativo = Column(Boolean, nullable=False, default=False, server_default='false')
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    nome: Mapped[str] = mapped_column(String(60))
+    email_normalizado: Mapped[str] = mapped_column(String(180), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    ativo: Mapped[bool] = mapped_column(default=False, server_default='false')
 
-    com_foto = Column(Boolean, default=False, server_default='false')
-    foto_base64 = Column(Text, nullable=True, default=None)
-    avatar_base64 = Column(Text, nullable=True, default=None)
-    foto_mime = Column(String(32), nullable=True, default=None)
+    com_foto: Mapped[bool] = mapped_column(default=False, server_default='false')
+    foto_base64: Mapped[Optional[str]] = mapped_column(Text, default=None)
+    avatar_base64: Mapped[Optional[str]] = mapped_column(Text, default=None)
+    foto_mime: Mapped[Optional[str]] = mapped_column(String(32), default=None)
 
-    usa_2fa = Column(Boolean, default=False, server_default='false')
-    _otp_secret = Column(String(32), nullable=True, default=None)
-    ultimo_otp = Column(String(6), nullable=True, default=None)
+    usa_2fa: Mapped[bool] = mapped_column(default=False, server_default='false')
+    _otp_secret: Mapped[Optional[str]] = mapped_column(
+            EncryptedType(length=500,
+                          encryption_key="DATABASE_ENCRYPTION_KEY",
+                          salt_key="DATABASE_ENCRYPTION_SALT"), default=None)
+    ultimo_otp: Mapped[Optional[str]] = mapped_column(String(6), default=None)
+
+    ultimo_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True),
+                                                             default=None)
 
     # Relação ORM que representa os códigos de backup 2FA associados ao usuário.
     # - `back_populates='usuario'`: sincroniza a relação bidirecional com Backup2FA.
     # - `lazy='select'`: carrega os códigos de backup ao buscar o usuário.
     # - `cascade='all, delete-orphan'`: remove os códigos de backup ao excluir o usuário.
     # - `passive_deletes=True`: permite que o banco de dados gerencie a exclusão em cascata.
-    lista_2fa_backup = relationship('Backup2FA',
-                                    back_populates='usuario',
-                                    lazy='select',
-                                    cascade='all, delete-orphan',
-                                    passive_deletes=True)
+    lista_2fa_backup: Mapped[list['Backup2FA']] = relationship(back_populates='usuario',
+                                                               lazy='select',
+                                                               cascade='all, delete-orphan',
+                                                               passive_deletes=True)
 
     @property
     def email(self):
@@ -111,10 +118,7 @@ class User(db.Model, BasicRepositoryMixin, UserMixin):
         Returns:
             O usuário encontrado, ou None
         """
-        return db.session.execute(
-                select(cls).
-                where(User.email_normalizado == email)
-        ).scalar_one_or_none()
+        return db.session.scalar(select(cls).where(User.email_normalizado.is_(email)))
 
     def check_password(self, password) -> bool:
         from werkzeug.security import check_password_hash
@@ -458,13 +462,19 @@ class User(db.Model, BasicRepositoryMixin, UserMixin):
         return True
 
 
-class Backup2FA(db.Model):
+class Backup2FA(db.Model, AuditMixin):
     __tablename__ = 'backup2fa'
 
-    id = Column(Integer, primary_key=True)
-    hash_codigo = Column(String(256), nullable=False)
-    usuario_id = Column(Uuid(as_uuid=True), ForeignKey('usuarios.id'))
+    # TODO: implementar mecanimso de marcação dos códigos de backup que foram usados ao invés
+    #   de exclusão, para manter histórico. Quando usado, acrescentar informações sobre o uso
+    #   e a data para remoção física (ex: após 30 dias) e implementar uma tarefa em Celery para
+    #   remoção periódica.
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hash_codigo: Mapped[str] = mapped_column(String(256))
+    usuario_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey('usuarios.id'),
+                                                  index=True)
 
     # Relação ORM para acessar o usuário associado a este código de backup 2FA.
     # `back_populates` garante sincronização bidirecional com User.lista_2fa_backup.
-    usuario = relationship('User', back_populates='lista_2fa_backup')
+    usuario: Mapped['User'] = relationship(back_populates='lista_2fa_backup')

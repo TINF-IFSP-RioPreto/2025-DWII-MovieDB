@@ -27,3 +27,5 @@ qrcode==8.2
 # Necessário para o qrcode
 # https://pillow.readthedocs.io/en/stable/
 Pillow==11.3.0
+# Necessário para a criptografia de colunas no banco de dados
+cryptography==46.0.1

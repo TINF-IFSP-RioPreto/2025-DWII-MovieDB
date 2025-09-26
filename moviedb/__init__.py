@@ -1,4 +1,6 @@
 # Contém a application factory
+import base64
+import hashlib
 import json
 import logging
 import os
@@ -51,7 +53,7 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
 
     app_logging.configure_logging(logging.DEBUG)
 
-    app.logger.debug("Configurando a aplicação a partir do arquivo '%s'" % (config_filename,))
+    app.logger.debug("Lendo a configuração da aplicação a partir do arquivo '%s'" % (config_filename,))
     try:
         app.config.from_file(config_filename,
                              load=json.load)
@@ -67,6 +69,7 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
             "Erro ao carregar o arquivo de configuração '%s': %s" % (config_filename, str(e),))
         sys.exit(1)
 
+    app.logger.debug("Aplicando configurações")
     if "SQLALCHEMY_DATABASE_URI" not in app.config:
         app.logger.fatal("A chave 'SQLALCHEMY_DATABASE_URI' não está "
                          "presente no arquivo de configuração")
@@ -90,6 +93,19 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
                            "adicione a chave acima ao arquivo de configuração")
         app.config["SECRET_KEY"] = secret_key
 
+    if "DATABASE_ENCRYPTION_KEY" not in app.config or app.config.get("DATABASE_ENCRYPTION_KEY") is None:
+        app.logger.fatal("A chave 'DATABASE_ENCRYPTION_KEY' não está presente no arquivo de configuração")
+        sys.exit(1)
+
+    if "DATABASE_ENCRYPTION_SALT" not in app.config or app.config.get("DATABASE_ENCRYPTION_SALT") is None:
+        app.logger.warning("A chave 'DATABASE_ENCRYPTION_SALT' não está presente no arquivo de configuração")
+        app.logger.warning("Para não invalidar os dados criptografados armazenados no banco de dados, "
+                           "adicione a chave abaixo ao arquivo de configuração")
+
+        hash_bytes = hashlib.sha256(f"{app.config.get("SECRET_KEY")}".encode()).digest()
+        app.config["DATABASE_ENCRYPTION_SALT"] = base64.urlsafe_b64encode(hash_bytes).decode('ascii').rstrip('=')[:20]
+        app.logger.warning("Gerando salt para a aplicação: '%s'" % (app.config["DATABASE_ENCRYPTION_SALT"],))
+
     app.logger.debug("Registrando modulos")
     bootstrap.init_app(app)
     db.init_app(app)
@@ -105,8 +121,8 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     login_manager.needs_refresh_message_category = "info"
 
     app.logger.debug("Registrando blueprints")
-    from blueprints.root import root_bp
-    from blueprints.auth import auth_bp
+    from .blueprints.root import root_bp
+    from .blueprints.auth import auth_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(root_bp)
 

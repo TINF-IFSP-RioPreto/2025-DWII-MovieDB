@@ -160,6 +160,7 @@ def login():
             return redirect(url_for('auth.get2fa'))
 
         login_user(usuario, remember=form.remember_me.data)
+        usuario.ultimo_login = db.func.now()
         db.session.commit()
         flash(f"Usuario {usuario.email} logado", category='success')
         current_app.logger.debug("Usuário %s logado" % (usuario.email,))
@@ -230,6 +231,7 @@ def get2fa():
             session.pop('pending_2fa_token', None)
             login_user(usuario, remember=remember_me)
             usuario.ultimo_otp = token
+            usuario.ultimo_login = db.func.now()
             db.session.commit()
 
             if not next_page or urlsplit(next_page).netloc != '':

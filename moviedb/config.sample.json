@@ -18,5 +18,7 @@
   "PASSWORD_SIMBOLO": false,
   "PASSWORD_MAIUSCULA": false,
   "2FA_SESSION_TIMEOUT": 300,
-  "AVATAR_SIZE": 32
+  "AVATAR_SIZE": 32,
+  "DATABASE_ENCRYPTION_KEY": "SenhaBemSeguraPraCriptografia",
+  "DATABASE_ENCRYPTION_SALT": "stable_salt_for_app_"
 }
