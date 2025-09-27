@@ -15,18 +15,4 @@ class JWT_action(Enum):
     VALIDAR_EMAIL = 1
     RESET_PASSWORD = 2
     PENDING_2FA = 3
-
-
-class Autenticacao2FA(Enum):
-    """ Enumeração que define os resultados possíveis da autenticação de dois fatores.
-
-    Attributes:
-        WRONG: Código de autenticação incorreto
-        TOTP: Autenticação bem-sucedida via TOTP (Time-based One-Time Password)
-        BACKUP: Autenticação bem-sucedida via código de backup
-        REUSED: Código de autenticação reutilizado (inválido)
-    """
-    WRONG = 0
-    TOTP = 1
-    BACKUP = 2
-    REUSED = 3
+    ACTIVATING_2FA = 4

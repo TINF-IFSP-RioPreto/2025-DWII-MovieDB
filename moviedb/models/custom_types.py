@@ -110,12 +110,14 @@ class EncryptedType(TypeDecorator):
         if value is None:
             return None
 
-        if isinstance(value, str):
-            fernet = self._get_fernet()
-            encrypted_bytes = fernet.encrypt(value.encode('utf-8'))
-            return base64.urlsafe_b64encode(encrypted_bytes).decode('ascii')
+        try:
+            value_str = str(value)
+        except Exception as e:
+            raise TypeError(f"Não foi possível converter o valor para string: {e}")
 
-        raise TypeError(f"Tipo não suportado para criptografia: {type(value)}")
+        fernet = self._get_fernet()
+        encrypted_bytes = fernet.encrypt(value_str.encode('utf-8'))
+        return base64.urlsafe_b64encode(encrypted_bytes).decode('ascii')
 
     def process_result_value(self, value: Any, dialect) -> Optional[str]:
         """Descriptografa valor do banco."""

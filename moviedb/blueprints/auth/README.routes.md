@@ -1,4 +1,4 @@
-## Rotas das Blueprints
+## Rotas da Blueprint
 
 As principais rotas implementadas na *blueprint* de autenticação são:
 
@@ -58,8 +58,3 @@ As principais rotas implementadas na *blueprint* de autenticação são:
     - Rota: `/auth/enable_2fa`
     - Argumentos: nenhum
     - Descrição: Ativa o segundo fator de autenticação (2FA) para o usuário autenticado.
-
-- **root.index**
-    - Rota: `/`
-    - Argumentos: nenhum
-    - Descrição: Exibe a página principal.

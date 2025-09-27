@@ -20,5 +20,8 @@
   "2FA_SESSION_TIMEOUT": 300,
   "AVATAR_SIZE": 32,
   "DATABASE_ENCRYPTION_KEY": "SenhaBemSeguraPraCriptografia",
-  "DATABASE_ENCRYPTION_SALT": "stable_salt_for_app_"
+  "DATABASE_ENCRYPTION_SALT": "stable_salt_for_app_",
+  "SEND_MAIL": false,
+  "EMAIL_PROVIDER": "postmark",
+  "POSTMARK_SERVER_TOKEN": "ColoqueOTokenAqui"
 }

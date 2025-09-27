@@ -97,6 +97,29 @@ class BasicRepositoryMixin:
         return db.session.scalars(sentenca)
 
     @classmethod
+    def get_all_by(cls,
+                   criteria: Dict[str, Any] = None,
+                   order_by: Optional[str] = None) -> Optional[list[Self]]:
+        """
+        Retorna todos os registros, opcionalmente ordenados por um atributo.
+
+        Args:
+            criteria (Dict[str, Any]): Dicionário com critérios de filtro (atributo: valor).
+            order_by (Optional[str]): Nome do atributo para ordenação.
+
+        Returns:
+            Result: Iterável de instâncias.
+        """
+        sentenca = sa.select(cls)
+        if criteria is not None:
+            for k, v in criteria.items():
+                if hasattr(cls, k):
+                    sentenca = sentenca.where(getattr(cls, k).is_(v))
+        if order_by is not None and hasattr(cls, order_by):
+            sentenca = sentenca.order_by(getattr(cls, order_by))
+        return db.session.scalars(sentenca)
+
+    @classmethod
     def get_by_composed_id(cls,
                            cls_dict_id: Dict[str, Any]) -> Optional[Self]:
         """

@@ -5,7 +5,8 @@ from wtforms.fields.simple import BooleanField, HiddenField, PasswordField, Stri
 from wtforms.validators import Email, EqualTo, InputRequired, Length
 
 from moviedb.forms.validators import CampoImutavel
-from .validators import SenhaComplexa, UniqueEmail
+from forms.validators import SenhaComplexa, UniqueEmail
+from services.image_processing_service import ImageProcessingService
 
 
 class RegistrationForm(FlaskForm):
@@ -91,8 +92,9 @@ class ProfileForm(FlaskForm):
 
     foto_raw = FileField(
             label="Foto de perfil",
-            validators=[FileAllowed(upload_set=['jpg', 'jpeg', 'png'],
-                                    message="Apenas arquivos JPG ou PNG")])
+            validators=[FileAllowed(upload_set=list(ImageProcessingService.SUPPORTED_FORMATS),
+                                    message=f"Apenas formatos {', '.join(ImageProcessingService.SUPPORTED_FORMATS)} "
+                                            "são permitidos")])
 
     submit = SubmitField("Efetuar as mudanças...")
     remover_foto = SubmitField("e remover foto")
@@ -103,7 +105,7 @@ class Read2FACodeForm(FlaskForm):
             label="Código",
             validators=[
                 InputRequired(message="Informe o código fornecido pelo aplicativo autenticador"),
-                Length(min=6, max=6)],
+                Length(min=6, max=8)],
             render_kw={'autocomplete': 'one-time-code',
-                       'pattern'     : r'^[A-Z0-9]{6}$'})
+                       'pattern'     : r'^[A-Za-z0-9]{8}$'})
     submit = SubmitField("Enviar código")

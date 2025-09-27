@@ -10,7 +10,7 @@ from moviedb.models.enumeracoes import JWT_action
 def create_jwt_token(action: JWT_action = JWT_action.NO_ACTION,
                      sub: Any = None,
                      expires_in: int = 600,
-                     extra_data: Optional[Dict[str, Any]] = None) -> str:
+                     extra_data: Optional[Dict[Any, Any]] = None) -> str:
     """
     Cria um token JWT com os parâmetros fornecidos.
 

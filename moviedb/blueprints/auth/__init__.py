@@ -3,16 +3,19 @@ from uuid import UUID
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, Response, \
     session, url_for
-from flask_login import current_user, fresh_login_required, login_required, login_user, logout_user
+from flask_login import current_user, fresh_login_required, login_required
 from markupsafe import Markup
 
+from blueprints.auth.forms_auth import AskToResetPasswordForm, LoginForm, ProfileForm, \
+    Read2FACodeForm, \
+    RegistrationForm, SetNewPasswordForm
 from moviedb import anonymous_required, db
-from moviedb.forms.auth import AskToResetPasswordForm, LoginForm, ProfileForm, Read2FACodeForm, \
-    RegistrationForm, \
-    SetNewPasswordForm
 from moviedb.infra.tokens import create_jwt_token, verify_jwt_token
-from moviedb.models.autenticacao import normalizar_email, User
-from moviedb.models.enumeracoes import Autenticacao2FA, JWT_action
+from moviedb.models.autenticacao import User
+from moviedb.models.enumeracoes import JWT_action
+from moviedb.services.email_service import EmailValidationService
+from moviedb.services.user_2fa_service import Autenticacao2FA, User2FAService
+from moviedb.services.user_service import UserService
 
 auth_bp = Blueprint(name='auth',
                     import_name=__name__,
@@ -37,6 +40,10 @@ def register():
         Response: Redireciona ou renderiza o template de registro.
     """
 
+    email_service = current_app.extensions.get('email_service')
+    if not email_service:
+        raise ValueError("EmailService não configurado na aplicação")
+
     form = RegistrationForm()
     if form.validate_on_submit():
         usuario = User()
@@ -54,7 +61,10 @@ def register():
         body = render_template('auth/email/email_confirmation.jinja2',
                                nome=usuario.nome,
                                url=url_for('auth.valida_email', token=token))
-        if not usuario.send_email(subject="Confirme o seu email", body=body):
+        result = email_service.send(to=usuario.email,
+                                    subject="Confirme o seu email",
+                                    text_body=body)
+        if result.get('success', False) is False:
             flash("Erro no envio do email de confirmação da conta", category="danger")
         db.session.commit()
         flash("Cadastro efetuado com sucesso. Confirme o seu email antes de logar "
@@ -84,6 +94,10 @@ def revalida_email(user_id):
         Response: Redireciona para a página de login.
     """
 
+    email_service = current_app.extensions.get('email_service')
+    if not email_service:
+        raise ValueError("EmailService não configurado na aplicação")
+
     try:
         uuid_obj = UUID(str(user_id))
     except ValueError:
@@ -103,7 +117,10 @@ def revalida_email(user_id):
     body = render_template('auth/email/email_confirmation.jinja2',
                            nome=usuario.nome,
                            url=url_for('auth.valida_email', token=token))
-    if not usuario.send_email(subject="Confirme o seu email", body=body):
+    result = email_service.send(to=usuario.email,
+                                subject="Confirme o seu email",
+                                text_body=body)
+    if result.get('success', False) is False:
         flash("Erro no envio do email de confirmação da conta", category="danger")
     else:
         flash(f"Um novo email de confirmação foi enviado para {usuario.email}. "
@@ -159,9 +176,7 @@ def login():
                   category='info')
             return redirect(url_for('auth.get2fa'))
 
-        login_user(usuario, remember=form.remember_me.data)
-        usuario.ultimo_login = db.func.now()
-        db.session.commit()
+        UserService.efetuar_login(usuario, remember_me=form.remember_me.data)
         flash(f"Usuario {usuario.email} logado", category='success')
         current_app.logger.debug("Usuário %s logado" % (usuario.email,))
 
@@ -225,26 +240,31 @@ def get2fa():
             return redirect(url_for('auth.login'))
 
         token = str(form.codigo.data)
-        resultado, metodo = usuario.verify_2fa_code(token)
-        if resultado:
-            # Limpa variáveis de sessão e finaliza login
+        resultado_validacao = User2FAService.validar_codigo_2fa(usuario,
+                                                                token)  # Registra tentativa de
+        # uso do código
+        if resultado_validacao.success:
             session.pop('pending_2fa_token', None)
-            login_user(usuario, remember=remember_me)
-            usuario.ultimo_otp = token
-            usuario.ultimo_login = db.func.now()
-            db.session.commit()
+            UserService.efetuar_login(usuario, remember_me=remember_me)
 
             if not next_page or urlsplit(next_page).netloc != '':
                 next_page = url_for('root.index')
 
             flash(f"Usuario {usuario.email} logado", category='success')
-            if metodo == Autenticacao2FA.BACKUP:
-                flash(Markup("Você usou um código reserva para autenticação. "
-                             "Considere gerar novos códigos reserva na sua página de perfil."),
-                      category='warning')
+            if len(resultado_validacao.security_warnings) > 0:
+                for warning in resultado_validacao.security_warnings:
+                    flash(Markup(warning), category='warning')
             return redirect(next_page)
 
-        # Código errado. Registra tentativa falha e permanece na página de 2FA
+        if resultado_validacao.method_used == Autenticacao2FA.NOT_ENABLED:
+            # Usuário não tem 2FA habilitado. Limpa variáveis de sessão e volta para o login
+            session.pop('pending_2fa_token', None)
+            current_app.logger.error("Usuário %s sem 2FA tentando acessar a página de 2FA" % (
+                usuario.id,))
+            flash("Acesso negado. Reinicie o processo de login.", category='danger')
+            return redirect(url_for('auth.login'))
+
+        # Código errado ou reusado. Registra tentativa falha e permanece na página de 2FA
         current_app.logger.warning("Código 2FA inválido para usuario %s a partir do IP %s" % (
             usuario.id, request.remote_addr,))
         flash("Código incorreto. Tente novamente", category='warning')
@@ -271,7 +291,7 @@ def logout():
     Returns:
         Response: Redireciona para a página inicial após logout.
     """
-    logout_user()
+    UserService.efetuar_logout(current_user)
     flash("Logout efetuado com sucesso!", category='success')
     return redirect(url_for('root.index'))
 
@@ -371,9 +391,13 @@ def new_password():
         Response: Redireciona para a página de login ou renderiza o formulário.
     """
 
+    email_service = current_app.extensions.get('email_service')
+    if not email_service:
+        raise ValueError("EmailService não configurado na aplicação")
+
     form = AskToResetPasswordForm()
     if form.validate_on_submit():
-        email = normalizar_email(form.email.data)
+        email = EmailValidationService.normalize(form.email.data)
         usuario = User.get_by_email(email)
         flash(f"Se houver uma conta com o email {email}, uma mensagem será enviada com as "
               f"instruções para a troca da senha", category='info')
@@ -383,7 +407,11 @@ def new_password():
             body = render_template('auth/email/email_new_password.jinja2',
                                    nome=usuario.nome,
                                    url=url_for('auth.reset_password', token=token))
-            usuario.send_email(subject="Altere a sua senha", body=body)
+            result = email_service.send(to=usuario.email,
+                                        subject="Altere a sua senha",
+                                        text_body=body)
+            if result.get('success', False) is False:
+                flash("Erro no envio do email de redefinição de senha", category="danger")
             return redirect(url_for('auth.login'))
         current_app.logger.warning(
                 "Pedido de reset de senha para usuário inexistente (%s)" % (email,))
@@ -470,15 +498,31 @@ def profile():
                 flash("Problemas no envio da imagem", category='warning')
         if form.usa_2fa.data:
             if not current_user.usa_2fa:
-                current_user.otp_secret = None  # Garante que um novo segredo será gerado
-                db.session.commit()
+                resultado = User2FAService.iniciar_ativacao_2fa(current_user)
+                # CRITICO: Token indicando que a verificação da senha está feita, mas o 2FA
+                #  ainda não. Necessário para proteger a rota /get2fa.
+                session['activating_2fa_token'] = (
+                    create_jwt_token(action=JWT_action.ACTIVATING_2FA,
+                                     sub=current_user.id,
+                                     expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
+                                     extra_data={
+                                         'tentative_otp' : resultado.secret,
+                                         'qr_code_base64': resultado.qr_code_base64
+                                     })
+                )
+                current_app.logger.debug(
+                    "activating_2fa_token: %s" % (session['pending_2fa_token'],))
                 flash("Alterações efetuadas. Conclua a ativação do segundo fator de "
                       "autenticação", category='info')
                 return redirect(url_for('auth.enable_2fa'))
         else:
-            if current_user.usa_2fa:
-                if current_user.disable_2fa():
-                    flash("Segundo fator de autenticação desativado", category='success')
+            resultado = User2FAService.desativar_2fa(current_user)
+            if resultado.status == Autenticacao2FA.DISABLED:
+                flash("Segundo fator de autenticação desativado", category='success')
+            elif resultado.status == Autenticacao2FA.NOT_ENABLED:
+                # Nada a fazer
+                pass
+
         db.session.commit()
         flash("Alterações efetuadas", category='success')
         return redirect(url_for("root.index"))
@@ -510,14 +554,44 @@ def enable_2fa():
               "segundo fator de autenticação", category='info')
         return redirect(url_for('auth.profile'))
 
+    # CRITICO: Verifica se a variável de sessão que indica que a senha foi validada
+    #  está presente. Se não estiver, redireciona para a página de login.
+    activating_2fa_token = session.get('activating_2fa_token')
+    if not activating_2fa_token:
+        current_app.logger.warning(
+                "Falha no processo de ativação do 2FA a partir do IP %s" % (request.remote_addr,))
+        flash("Reinicie o processo de configuração do 2FA.", category='danger')
+        return redirect(url_for('auth.profile'))
+
+    dados_token = verify_jwt_token(activating_2fa_token)
+    if not dados_token.get('valid', False) or \
+            dados_token.get('action') != JWT_action.ACTIVATING_2FA or \
+            not dados_token.get('extra_data', False):
+        session.pop('activating_2fa_token', None)
+        current_app.logger.warning(
+                "Falha no processo de ativação do 2FA a partir do IP %s" % (request.remote_addr,))
+        flash("Reinicie o processo de configuração do 2FA.", category='danger')
+        return redirect(url_for('auth.profile'))
+
+    user_id = dados_token.get('sub')
+    tentative_otp = dados_token.get('extra_data').get('tentative_otp', None)
+    qr_code_base64 = dados_token.get('extra_data').get('qr_code_base64', None)
+
+    if tentative_otp is None or qr_code_base64 is None or str(current_user.id) != str(user_id):
+        session.pop('activating_2fa_token', None)
+        current_app.logger.warning(
+                "Falha no processo de ativação do 2FA a partir do IP %s" % (request.remote_addr,))
+        flash("Reinicie o processo de configuração do 2FA.", category='danger')
+        return redirect(url_for('auth.profile'))
+
     form = Read2FACodeForm()
     if request.method == 'POST' and form.validate():
-        resultado, metodo = current_user.verify_2fa_code(form.codigo.data, totp_only=True)
-        if resultado:
-            codigos = current_user.enable_2fa(otp_secret=current_user.otp_secret,
-                                              ultimo_otp=form.codigo.data,
-                                              generate_backup=True,
-                                              back_codes=10)
+        resultado = User2FAService.confirmar_ativacao_2fa(current_user,
+                                                          secret=tentative_otp,
+                                                          codigo_confirmacao=form.codigo.data)
+        if resultado.status == Autenticacao2FA.ENABLED:
+            codigos = resultado.backup_codes
+            session.pop('activating_2fa_token', None)
             db.session.commit()
             flash("Segundo fator de autenticação ativado", category='success')
             subtitle_card = ("<p>Guarde com cuidado os códigos abaixo. Eles podem ser usados "
@@ -530,13 +604,7 @@ def enable_2fa():
                                    title="Códigos reserva",
                                    title_card="Códigos reserva para segundo fator de autenticação",
                                    subtitle_card=Markup(subtitle_card))
-        # Código errado
-        if metodo == Autenticacao2FA.REUSED:
-            flash("O código informado foi usado recentemente. Se você está vendo esta mensagem "
-                  "repetidamente, desative e reative o 2FA.", category='warning')
-            current_app.logger.error(
-                "Usuário %s reutilizou um código TOTP na ativação do 2FA" % (current_user.email,))
-        else:
+        else:  # Autenticacao2FA.INVALID_CODE
             flash("O código informado está incorreto. Tente novamente.", category='warning')
         return redirect(url_for('auth.enable_2fa'))
 
@@ -544,5 +612,5 @@ def enable_2fa():
                            title="Ativação do 2FA",
                            title_card="Ativação do segundo fator de autenticação",
                            form=form,
-                           imagem=current_user.b64encoded_qr_totp_uri,
-                           token=current_user.otp_secret_formatted)
+                           imagem=qr_code_base64,
+                           token=User2FAService.otp_secret_formatted(tentative_otp))
