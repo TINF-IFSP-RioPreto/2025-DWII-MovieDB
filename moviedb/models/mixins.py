@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Self, Union
 
 import sqlalchemy as sa
 from flask import current_app
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, ScalarResult
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,13 +55,13 @@ class BasicRepositoryMixin:
                 return None
             return db.session.get(cls, obj_id)
         except (ValueError, SQLAlchemyError) as e:
-            current_app.logger.error(f"Erro ao buscar por ID: {e}")
+            current_app.logger.error("Erro ao buscar por ID: %s"% (str(e)))
             return None
 
     @classmethod
     def get_top_n(cls,
                   top_n: int = -1,
-                  order_by: Optional[str] = None) -> Optional[list[Self]]:
+                  order_by: Optional[str] = None) -> ScalarResult[Self]:
         """
         Retorna os top N registros, opcionalmente ordenados por um atributo.
 
@@ -81,7 +81,7 @@ class BasicRepositoryMixin:
 
     @classmethod
     def get_all(cls,
-                order_by: Optional[str] = None) -> Optional[list[Self]]:
+                order_by: Optional[str] = None) -> ScalarResult[Self]:
         """
         Retorna todos os registros, opcionalmente ordenados por um atributo.
 
@@ -99,7 +99,7 @@ class BasicRepositoryMixin:
     @classmethod
     def get_all_by(cls,
                    criteria: Dict[str, Any] = None,
-                   order_by: Optional[str] = None) -> Optional[list[Self]]:
+                   order_by: Optional[str] = None) -> ScalarResult[Self]:
         """
         Retorna todos os registros, opcionalmente ordenados por um atributo.
 
@@ -114,7 +114,10 @@ class BasicRepositoryMixin:
         if criteria is not None:
             for k, v in criteria.items():
                 if hasattr(cls, k):
-                    sentenca = sentenca.where(getattr(cls, k).is_(v))
+                    if isinstance(v, bool):
+                        sentenca = sentenca.where(getattr(cls, k).is_(v))
+                    else:
+                        sentenca = sentenca.where(getattr(cls, k) == v)
         if order_by is not None and hasattr(cls, order_by):
             sentenca = sentenca.order_by(getattr(cls, order_by))
         return db.session.scalars(sentenca)
@@ -178,7 +181,7 @@ class BasicRepositoryMixin:
     def get_page(cls,
                  page: int = 1,
                  page_size: int = 10,
-                 order_by: Optional[str] = None) -> Optional[list[Self]]:
+                 order_by: Optional[str] = None) -> ScalarResult[Self]:
         """
         Retorna uma página de registros, com paginação e ordenação opcional.
 

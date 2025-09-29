@@ -6,16 +6,14 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, fresh_login_required, login_required
 from markupsafe import Markup
 
-from blueprints.auth.forms_auth import AskToResetPasswordForm, LoginForm, ProfileForm, \
-    Read2FACodeForm, \
-    RegistrationForm, SetNewPasswordForm
 from moviedb import anonymous_required, db
-from moviedb.infra.tokens import create_jwt_token, verify_jwt_token
 from moviedb.models.autenticacao import User
-from moviedb.models.enumeracoes import JWT_action
 from moviedb.services.email_service import EmailValidationService
+from moviedb.services.token_service import JWT_action, JWTService
 from moviedb.services.user_2fa_service import Autenticacao2FA, User2FAService
 from moviedb.services.user_service import UserService
+from .forms_auth import AskToResetPasswordForm, LoginForm, ProfileForm, \
+    Read2FACodeForm, RegistrationForm, SetNewPasswordForm
 
 auth_bp = Blueprint(name='auth',
                     import_name=__name__,
@@ -56,15 +54,15 @@ def register():
         db.session.flush()
         # Atualiza o objeto usuário com os dados mais recentes do banco de dados.
         db.session.refresh(usuario)
-        token = create_jwt_token(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
+        token = JWTService.create(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
         current_app.logger.debug("Token de validação de email: %s" % (token,))
         body = render_template('auth/email/email_confirmation.jinja2',
                                nome=usuario.nome,
                                url=url_for('auth.valida_email', token=token))
-        result = email_service.send(to=usuario.email,
-                                    subject="Confirme o seu email",
-                                    text_body=body)
-        if result.get('success', False) is False:
+        result = email_service.send_email(to=usuario.email,
+                                          subject="Confirme o seu email",
+                                          text_body=body)
+        if result.success is False:
             flash("Erro no envio do email de confirmação da conta", category="danger")
         db.session.commit()
         flash("Cadastro efetuado com sucesso. Confirme o seu email antes de logar "
@@ -112,15 +110,15 @@ def revalida_email(user_id):
         flash("Usuário já está ativo. Faça login no sistema", category='info')
         return redirect(url_for('auth.login'))
 
-    token = create_jwt_token(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
+    token = JWTService.create(action=JWT_action.VALIDAR_EMAIL, sub=usuario.email)
     current_app.logger.debug("Token de validação de email: %s" % (token,))
     body = render_template('auth/email/email_confirmation.jinja2',
                            nome=usuario.nome,
                            url=url_for('auth.valida_email', token=token))
-    result = email_service.send(to=usuario.email,
-                                subject="Confirme o seu email",
-                                text_body=body)
-    if result.get('success', False) is False:
+    result = email_service.send_email(to=usuario.email,
+                                      subject="Confirme o seu email",
+                                      text_body=body)
+    if result.success is False:
         flash("Erro no envio do email de confirmação da conta", category="danger")
     else:
         flash(f"Um novo email de confirmação foi enviado para {usuario.email}. "
@@ -153,8 +151,7 @@ def login():
         if usuario is None or not usuario.check_password(form.password.data):
             flash("Email ou senha incorretos", category='warning')
             return redirect(url_for('auth.login'))
-        if not usuario.ativo:
-
+        if not UserService.pode_logar(usuario):
             flash(Markup(f"Usuário está impedido de acessar o sistema. Precisa de um <a href=\""
                          f"{url_for('auth.revalida_email', user_id=usuario.id)}\""
                          f">novo email de confirmacao</a>?"), category='warning')
@@ -163,13 +160,13 @@ def login():
             # CRITICO: Token indicando que a verificação da senha está feita, mas o 2FA
             #  ainda não. Necessário para proteger a rota /get2fa.
             session['pending_2fa_token'] = (
-                create_jwt_token(action=JWT_action.PENDING_2FA,
-                                 sub=usuario.id,
-                                 expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
-                                 extra_data={
-                                     'remember_me': bool(form.remember_me.data),
-                                     'next'       : request.args.get('next')
-                                 })
+                JWTService.create(action=JWT_action.PENDING_2FA,
+                                  sub=usuario.id,
+                                  expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
+                                  extra_data={
+                                      'remember_me': bool(form.remember_me.data),
+                                      'next'       : request.args.get('next')
+                                  })
             )
             current_app.logger.debug("pending_2fa_token: %s" % (session['pending_2fa_token'],))
             flash("Conclua o login digitando o código do segundo fator de autenticação",
@@ -178,7 +175,6 @@ def login():
 
         UserService.efetuar_login(usuario, remember_me=form.remember_me.data)
         flash(f"Usuario {usuario.email} logado", category='success')
-        current_app.logger.debug("Usuário %s logado" % (usuario.email,))
 
         next_page = request.args.get('next')
         if not next_page or urlsplit(next_page).netloc != '':
@@ -216,7 +212,7 @@ def get2fa():
         flash("Acesso negado. Reinicie o processo de login.", category='danger')
         return redirect(url_for('auth.login'))
 
-    dados_token = verify_jwt_token(pending_2fa_token)
+    dados_token = JWTService.verify(pending_2fa_token)
     if not dados_token.get('valid', False) or \
             dados_token.get('action') != JWT_action.PENDING_2FA or \
             not dados_token.get('extra_data', False):
@@ -240,9 +236,9 @@ def get2fa():
             return redirect(url_for('auth.login'))
 
         token = str(form.codigo.data)
-        resultado_validacao = User2FAService.validar_codigo_2fa(usuario,
-                                                                token)  # Registra tentativa de
-        # uso do código
+        # Registra tentativa de uso do código
+        resultado_validacao = User2FAService.validar_codigo_2fa(usuario, token)
+
         if resultado_validacao.success:
             session.pop('pending_2fa_token', None)
             UserService.efetuar_login(usuario, remember_me=remember_me)
@@ -265,8 +261,8 @@ def get2fa():
             return redirect(url_for('auth.login'))
 
         # Código errado ou reusado. Registra tentativa falha e permanece na página de 2FA
-        current_app.logger.warning("Código 2FA inválido para usuario %s a partir do IP %s" % (
-            usuario.id, request.remote_addr,))
+        # current_app.logger.warning("Código 2FA inválido para usuario %s a partir do IP %s" % (
+        #     usuario.id, request.remote_addr,))
         flash("Código incorreto. Tente novamente", category='warning')
 
     return render_template('auth/web/2fa.jinja2',
@@ -315,8 +311,9 @@ def valida_email(token):
         Response: Redireciona para a página de login ou inicial, conforme o caso.
     """
 
-    claims = verify_jwt_token(token)
+    claims = JWTService.verify(token)
     if not (claims.get('valid', False) and {'sub', 'action'}.issubset(claims)):
+        current_app.logger.error("Token incorreto ou incompleto: %s" % (claims,))
         flash("Token incorreto ou incompleto", category='warning')
         return redirect(url_for('root.index'))
 
@@ -324,7 +321,7 @@ def valida_email(token):
     if (usuario is not None and
             not usuario.ativo and
             claims.get('action') == JWT_action.VALIDAR_EMAIL):
-        usuario.ativo = True
+        UserService.confirmar_email(usuario)
         flash(f"Email {usuario.email} validado!", category='success')
         db.session.commit()
         return redirect(url_for('auth.login'))
@@ -351,7 +348,7 @@ def reset_password(token):
         Response: Redireciona para a página de login ou inicial, conforme o caso.
     """
 
-    claims = verify_jwt_token(token)
+    claims = JWTService.verify(token)
     if not (claims.get('valid', False) and {'sub', 'action'}.issubset(claims)):
         flash("Token incorreto ou incompleto", category='warning')
         return redirect(url_for('root.index'))
@@ -402,15 +399,15 @@ def new_password():
         flash(f"Se houver uma conta com o email {email}, uma mensagem será enviada com as "
               f"instruções para a troca da senha", category='info')
         if usuario is not None:
-            token = create_jwt_token(JWT_action.RESET_PASSWORD,
-                                     sub=usuario.email)
+            token = JWTService.create(JWT_action.RESET_PASSWORD,
+                                      sub=usuario.email)
             body = render_template('auth/email/email_new_password.jinja2',
                                    nome=usuario.nome,
                                    url=url_for('auth.reset_password', token=token))
-            result = email_service.send(to=usuario.email,
-                                        subject="Altere a sua senha",
-                                        text_body=body)
-            if result.get('success', False) is False:
+            result = email_service.send_email(to=usuario.email,
+                                              subject="Altere a sua senha",
+                                              text_body=body)
+            if result.success is False:
                 flash("Erro no envio do email de redefinição de senha", category="danger")
             return redirect(url_for('auth.login'))
         current_app.logger.warning(
@@ -502,16 +499,16 @@ def profile():
                 # CRITICO: Token indicando que a verificação da senha está feita, mas o 2FA
                 #  ainda não. Necessário para proteger a rota /get2fa.
                 session['activating_2fa_token'] = (
-                    create_jwt_token(action=JWT_action.ACTIVATING_2FA,
-                                     sub=current_user.id,
-                                     expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
-                                     extra_data={
-                                         'tentative_otp' : resultado.secret,
-                                         'qr_code_base64': resultado.qr_code_base64
-                                     })
+                    JWTService.create(action=JWT_action.ACTIVATING_2FA,
+                                      sub=current_user.id,
+                                      expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
+                                      extra_data={
+                                          'tentative_otp' : resultado.secret,
+                                          'qr_code_base64': resultado.qr_code_base64
+                                      })
                 )
                 current_app.logger.debug(
-                    "activating_2fa_token: %s" % (session['pending_2fa_token'],))
+                        "activating_2fa_token: %s" % (session['activating_2fa_token'],))
                 flash("Alterações efetuadas. Conclua a ativação do segundo fator de "
                       "autenticação", category='info')
                 return redirect(url_for('auth.enable_2fa'))
@@ -563,7 +560,7 @@ def enable_2fa():
         flash("Reinicie o processo de configuração do 2FA.", category='danger')
         return redirect(url_for('auth.profile'))
 
-    dados_token = verify_jwt_token(activating_2fa_token)
+    dados_token = JWTService.verify(activating_2fa_token)
     if not dados_token.get('valid', False) or \
             dados_token.get('action') != JWT_action.ACTIVATING_2FA or \
             not dados_token.get('extra_data', False):

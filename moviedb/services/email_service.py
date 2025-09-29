@@ -67,6 +67,17 @@ class EmailValidationService:
             raise ValueError("Endereço de email inválido.") from e
 
 
+@dataclass
+class EmailResult:
+    success: bool
+    provider: str = ""
+    message_id: Optional[str] = None
+    to: Optional[str] = None
+    sent_at: Optional[str] = None
+    error_code: Optional[int] = None
+    raw_response: Optional[Any] = None
+
+
 class EmailProviderError(Exception):
     """Exceção base para erros de provedores de email."""
     pass
@@ -76,7 +87,7 @@ class EmailProvider(ABC):
     """Interface abstrata para provedores de email."""
 
     @abstractmethod
-    def send(self, message: EmailMessage) -> Dict[str, Any]:
+    def send(self, message: EmailMessage) -> EmailResult:
         """
         Envia um email usando o provedor.
 
@@ -84,7 +95,7 @@ class EmailProvider(ABC):
             message: Mensagem a ser enviada
 
         Returns:
-            dict: Resultado do envio com informações do provedor
+            EmailResult: Resultado do envio com informações do provedor
 
         Raises:
             EmailProviderError: Em caso de erro no envio
@@ -111,7 +122,7 @@ class PostmarkProvider(EmailProvider):
             raise ValueError("A chave da API do Postmark é obrigatória e deve ser uma string.")
         self._api_key = api_key
 
-    def send(self, message: EmailMessage) -> Dict[str, Any]:
+    def send(self, message: EmailMessage) -> EmailResult:
         """
         Envia um email usando o Postmark.
 
@@ -119,7 +130,7 @@ class PostmarkProvider(EmailProvider):
             message: Mensagem a ser enviada
 
         Returns:
-            dict: Resultado do envio com informações do Postmark
+            EmailResult: Resultado do envio com informações do Postmark
 
         Raises:
             EmailProviderError: Em caso de erro no envio
@@ -131,9 +142,9 @@ class PostmarkProvider(EmailProvider):
 
             # Monta o email para Postmark
             email_data = {
-                'From'      : message.from_email,
-                'To'        : message.to,
-                'Subject'   : message.subject,
+                'From'   : message.from_email,
+                'To'     : message.to,
+                'Subject': message.subject,
             }
 
             # Adiciona corpo do email
@@ -155,17 +166,17 @@ class PostmarkProvider(EmailProvider):
 
             if response.get('ErrorCode', 0) != 0:
                 raise EmailProviderError(
-                    f"Erro Postmark: {response.get('Message', 'Erro desconhecido')}")
+                        f"Erro Postmark: {response.get('Message', 'Erro desconhecido')}")
 
-            return {
-                'success'     : True,
-                'provider'    : 'postmark',
-                'message_id'  : response.get('MessageID'),
-                'submitted_at': response.get('SubmittedAt'),
-                'to'          : response.get('To'),
-                'error_code'  : response.get('ErrorCode', 0),
-                'raw_response': response
-            }
+            return EmailResult(
+                    success=True,
+                    provider='postmark',
+                    message_id=response.get('MessageID'),
+                    to=response.get('To'),
+                    sent_at=response.get('SubmittedAt'),
+                    error_code=response.get('ErrorCode', 0),
+                    raw_response=response
+            )
 
         except ImportError:
             raise EmailProviderError("Biblioteca postmarker não instalada")
@@ -187,7 +198,7 @@ class SMTPProvider(EmailProvider):
         self._password = password
         self._use_tls = use_tls
 
-    def send(self, message: EmailMessage) -> Dict[str, Any]:
+    def send(self, message: EmailMessage) -> EmailResult:
         """Envia email via SMTP."""
         try:
             import smtplib
@@ -218,7 +229,6 @@ class SMTPProvider(EmailProvider):
             if message.html_body:
                 msg.attach(MIMEText(message.html_body, 'html', 'utf-8'))
 
-
             # Conecta ao servidor SMTP
             server = smtplib.SMTP(self._smtp_server, self._smtp_port)
 
@@ -240,14 +250,13 @@ class SMTPProvider(EmailProvider):
 
             message_id = str(uuid.uuid4())
 
-            return {
-                'success'     : True,
-                'provider'    : 'smtp',
-                'message_id'  : message_id,
-                'to'          : message.to,
-                'refused'     : result,  # Lista de emails rejeitados
-                'raw_response': result
-            }
+            return EmailResult(
+                    success=True,
+                    provider='smtp',
+                    message_id=message_id,
+                    to=message.to,
+                    raw_response=result
+            )
 
         except Exception as e:
             raise EmailProviderError(f"Erro ao enviar via SMTP: {str(e)}") from e
@@ -263,7 +272,7 @@ class MockProvider(EmailProvider):
         self.log_emails = log_emails
         self.sent_emails = []  # Para testes
 
-    def send(self, message: EmailMessage) -> Dict[str, Any]:
+    def send(self, message: EmailMessage) -> EmailResult:
         """Simula envio de email."""
         import uuid
         from datetime import datetime
@@ -284,9 +293,9 @@ class MockProvider(EmailProvider):
 
         if self.log_emails:
             current_app.logger.debug("=== EMAIL SIMULADO ===")
-            current_app.logger.debug(f"From: {message.from_email}")
-            current_app.logger.debug(f"To: {message.to}")
-            current_app.logger.debug(f"Subject: {message.subject}")
+            current_app.logger.debug("From: %s" % (message.from_email))
+            current_app.logger.debug("To: %s" % (message.to))
+            current_app.logger.debug("Subject: %s" % (message.subject))
             current_app.logger.debug("--- Text Body ---")
             current_app.logger.debug(message.text_body or "(vazio)")
             if message.html_body:
@@ -294,13 +303,13 @@ class MockProvider(EmailProvider):
                 current_app.logger.debug(message.html_body)
             current_app.logger.debug("===================")
 
-        return {
-            'success'   : True,
-            'provider'  : 'mock',
-            'message_id': message_id,
-            'to'        : message.to,
-            'sent_at'   : email_info['sent_at']
-        }
+        return EmailResult(
+                success=True,
+                provider='mock',
+                message_id=message_id,
+                to=message.to,
+                sent_at=email_info['sent_at']
+        )
 
     def get_provider_name(self) -> str:
         return "Mock (Development)"
@@ -349,7 +358,7 @@ class EmailService:
                 server_token = app_config.get('POSTMARK_SERVER_TOKEN')
                 if not server_token:
                     raise ValueError(
-                        "POSTMARK_SERVER_TOKEN é obrigatório quando EMAIL_PROVIDER=postmark")
+                            "POSTMARK_SERVER_TOKEN é obrigatório quando EMAIL_PROVIDER=postmark")
                 provider = PostmarkProvider(server_token)
 
             elif email_provider == 'smtp':
@@ -386,7 +395,7 @@ class EmailService:
                    html_body: Optional[str] = None,
                    from_email: Optional[str] = None,
                    from_name: Optional[str] = None,
-                   **kwargs) -> Dict[str, Any]:
+                   **kwargs) -> EmailResult:
         """
         Envia um email.
 
@@ -400,7 +409,7 @@ class EmailService:
             **kwargs: Argumentos adicionais para EmailMessage
 
         Returns:
-            dict: Resultado do envio
+            EmailResult: Resultado do envio
 
         Raises:
             EmailProviderError: Em caso de erro no envio
@@ -427,13 +436,17 @@ class EmailService:
 
             result = self.provider.send(message)
 
-            current_app.logger.info(f"Email enviado via {self.provider.get_provider_name()}: "
-                                    f"{to} - {subject} (ID: {result.get('message_id', 'N/A')})")
+            current_app.logger.debug(
+                "Email enviado via %s: %s - %s (ID: %s)" % (self.provider.get_provider_name(),
+                                                            to,
+                                                            subject,
+                                                            result.message_id if
+                                                            result.message_id else 'N/A'))
 
             return result
 
         except Exception as e:
-            current_app.logger.error(f"Erro ao enviar email para {to}: {str(e)}")
+            current_app.logger.error("Erro ao enviar email para %s: %s" % (to, str(e)))
             raise
 
     def get_provider_info(self) -> Dict[str, Any]:

@@ -9,8 +9,11 @@
             <div class="input-group-text">{{ render_icon("shield-lock") }}</div>
             {% if form.codigo.errors -%}
                 {{ form.codigo(class="form-control is-invalid") }}
+                {%- for error in form.codigo.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {%- endfor %}
             {%- else -%}
-                {{ form.codigo(class="form-control", placeholder="000000") }}
+                {{ form.codigo(class="form-control") }}
             {%- endif %}
         </div>
     </form>

@@ -10,10 +10,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from moviedb import db
+from moviedb.services.email_service import EmailValidationService
+from moviedb.services.image_processing_service import ImageProcessingError, ImageProcessingService
 from .custom_types import EncryptedType
 from .mixins import AuditMixin, BasicRepositoryMixin
-from ..services.email_service import EmailValidationService
-from ..services.image_processing_service import ImageProcessingError, ImageProcessingService
 
 
 class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
@@ -137,9 +137,9 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
                 self.foto_mime = None
             else:
                 resultado = ImageProcessingService.processar_upload_foto(value)
-                self.foto_base64 = resultado['foto_base64']
-                self.avatar_base64 = resultado['avatar_base64']
-                self.foto_mime = resultado['mime_type']
+                self.foto_base64 = resultado.foto_base64
+                self.avatar_base64 = resultado.avatar_base64
+                self.foto_mime = resultado.mime_type
                 self.com_foto = True
 
                 db.session.commit()
@@ -155,12 +155,13 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
         except (ImageProcessingError, ValueError) as e:
             db.session.rollback()
-            current_app.logger.error(f"Erro ao processar foto do usuário {self.email}: {str(e)}")
+            current_app.logger.error(
+                "Erro ao processar foto do usuário %s: %s" % (self.email, str(e)))
             raise e
         except SQLAlchemyError as e:
             db.session.rollback()
             raise SQLAlchemyError(
-                f"Erro de banco de dados ao processar foto do usuário: {str(e)}") from e
+                "Erro de banco de dados ao processar foto do usuário: %s" % (str(e))) from e
 
     @property
     def otp_secret(self):

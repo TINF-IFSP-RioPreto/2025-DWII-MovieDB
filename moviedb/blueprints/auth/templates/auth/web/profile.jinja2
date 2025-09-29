@@ -21,6 +21,9 @@
                     {{ form.nome.label(class="form-label") }}
                     {% if form.nome.errors -%}
                         {{ form.nome(class="form-control is-invalid") }}
+                        {%- for error in form.nome.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {%- endfor %}
                     {%- else -%}
                         {{ form.nome(class="form-control") }}
                     {%- endif %}
@@ -34,7 +37,14 @@
                 </div>
                 <div class="row mb-3 align-items-end">
                     {{ form.foto_raw.label(class="form-label") }}
-                    {{ form.foto_raw(class="form-control") }}
+                    {% if form.foto_raw.errors -%}
+                        {{ form.foto_raw(class="form-control is-invalid") }}
+                        {%- for error in form.foto_raw.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {%- endfor %}
+                    {%- else -%}
+                        {{ form.foto_raw(class="form-control") }}
+                    {%- endif %}
                 </div>
             </div>
         </div>

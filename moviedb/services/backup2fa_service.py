@@ -7,8 +7,8 @@ from sqlalchemy import delete, insert
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .. import db
-from ..models.autenticacao import Backup2FA, User
+from moviedb import db
+from moviedb.models.autenticacao import Backup2FA, User
 
 
 class KeepForDays(Enum):
@@ -29,21 +29,24 @@ class Backup2FAService:
 
     # Conjunto de caracteres sem ambiguidade visual
     CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-    CODIGO_LENGTH = 8  # Aumentando para compensar redução de entropia causada pelo charset reduzido
+    CODIGO_LENGTH = 6
 
     @staticmethod
-    def _obter_tokens(usuario: User, valid_only: bool = False) -> List['Backup2FA']:
+    def _obter_tokens(usuario: User, unused_only: bool = False) -> List['Backup2FA']:
         """
         Recupera todos os códigos de backup 2FA do usuário.
 
         Args:
             usuario (User): Instância do usuário cujos códigos serão listados.
-            valid_only (bool): Se True, retorna apenas códigos não utilizados.
+            unused_only (bool): Se True, retorna apenas códigos não utilizados.
 
         Returns:
             list[Backup2FA]: Lista de códigos de backup 2FA disponíveis.
         """
-        return Backup2FA.get_all_by(criteria={"usuario_id": usuario.id, "utilizado": valid_only})
+        if unused_only:
+            return list(Backup2FA.get_all_by(criteria={"usuario_id": usuario.id, "utilizado": False}).all())
+        else:
+            return list(Backup2FA.get_all_by(criteria={"usuario_id": usuario.id}).all())
 
     @staticmethod
     def _gerar_codigo_aleatorio() -> str:
@@ -87,7 +90,7 @@ class Backup2FAService:
         """
         try:
             # Busca códigos não utilizados do usuário
-            codigos_disponiveis = Backup2FAService._obter_tokens(usuario, valid_only=True)
+            codigos_disponiveis = Backup2FAService._obter_tokens(usuario, unused_only=True)
 
             for backup_code in codigos_disponiveis:
                 if check_password_hash(backup_code.hash_codigo, token):
@@ -112,7 +115,8 @@ class Backup2FAService:
         Returns:
             int: Número de códigos de backup 2FA disponíveis.
         """
-        return len(Backup2FAService._obter_tokens(usuario, valid_only=True))
+        tokens = Backup2FAService._obter_tokens(usuario, unused_only=True)
+        return len(tokens)
 
     @staticmethod
     def invalidar_codigos(usuario: User, keep_for_days: KeepForDays = KeepForDays.ONE_MONTH) -> int:
@@ -128,7 +132,7 @@ class Backup2FAService:
             int: Número de códigos marcados como usados.
         """
         try:
-            codigos_validos = Backup2FAService._obter_tokens(usuario, valid_only=True)
+            codigos_validos = Backup2FAService._obter_tokens(usuario, unused_only=True)
 
             count = 0
             for codigo in codigos_validos:
@@ -159,9 +163,7 @@ class Backup2FAService:
         """
         try:
             # Remove códigos não utilizados
-            codigos_validos = Backup2FAService._obter_tokens(usuario, valid_only=True)
-            for codigo in codigos_validos:
-                Backup2FAService._invalidar_codigo(codigo)
+            qtd = Backup2FAService.invalidar_codigos(usuario)
 
             # Gera novos códigos
             codigos_texto_plano = []

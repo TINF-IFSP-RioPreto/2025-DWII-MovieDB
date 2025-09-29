@@ -4,8 +4,8 @@ from flask import current_app
 from flask_login import login_user, logout_user
 from sqlalchemy.exc import SQLAlchemyError
 
-from .. import db
-from ..models.autenticacao import User
+from moviedb import db
+from moviedb.models.autenticacao import User
 
 
 class UserService:
@@ -29,7 +29,7 @@ class UserService:
         try:
             if usuario.ativo:
                 current_app.logger.warning(
-                        f"Tentativa de confirmar email já confirmado: {usuario.email}")
+                    "Tentativa de confirmar email já confirmado: %s" % (usuario.email,))
                 return True  # Já está confirmado, não é erro
 
             usuario.ativo = True
@@ -37,13 +37,13 @@ class UserService:
 
             db.session.commit()
 
-            current_app.logger.info(f"Email confirmado para usuário: {usuario.email}")
+            current_app.logger.info("Email confirmado para usuário: %s" % (usuario.email,))
             return True
 
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error(
-                f"Erro ao confirmar email do usuário {usuario.email}: {str(e)}")
+                "Erro ao confirmar email do usuário %s: %s" % (usuario.email, str(e)))
             raise e
 
     @staticmethod
@@ -64,7 +64,7 @@ class UserService:
         try:
             if not usuario.ativo:
                 current_app.logger.warning(
-                        f"Tentativa de desconfirmar email ainda não confirmado: {usuario.email}")
+                    "Tentativa de desconfirmar email ainda não confirmado: %s" % (usuario.email,))
                 return True  # Já está confirmado, não é erro
 
             usuario.ativo = False
@@ -72,14 +72,30 @@ class UserService:
 
             db.session.commit()
 
-            current_app.logger.info(f"Email desconfirmado para usuário: {usuario.email}")
+            current_app.logger.info("Email desconfirmado para usuário: %s" % (usuario.email,))
             return True
 
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error(
-                    f"Erro ao desconfirmar email do usuário {usuario.email}: {str(e)}")
+                "Erro ao desconfirmar email do usuário %s: %s" % (usuario.email, str(e)))
             raise e
+
+    @staticmethod
+    def pode_logar(usuario: User) -> bool:
+        """
+        Verifica se o usuário está ativo e pode efetuar login.
+
+        Args:
+            usuario: Instância do usuário
+
+        Returns:
+            bool: True se o usuário pode logar, False caso contrário
+        """
+        if not usuario.ativo:
+            current_app.logger.warning("Usuário inativo tentou logar: %s" % (usuario.email,))
+            return False
+        return True
 
     @staticmethod
     def efetuar_login(usuario: User, remember_me: bool = False) -> bool:
@@ -109,14 +125,14 @@ class UserService:
 
             db.session.commit()
 
-            current_app.logger.info(f"Login efetuado para usuário: {usuario.email}")
+            current_app.logger.info("Login efetuado para usuário: %s" % (usuario.email,))
             return True
 
         except ValueError:
             raise  # Re-propaga erro de validação
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Erro ao efetuar login do usuário {usuario.email}: {str(e)}")
+            current_app.logger.error("Erro ao efetuar login do usuário %s: %s" % (usuario.email, str(e)))
             raise e
 
     @staticmethod
@@ -134,15 +150,15 @@ class UserService:
             user_email = usuario.email  # Captura antes do logout
             logout_user()
 
-            current_app.logger.info(f"Logout efetuado para usuário: {user_email}")
+            current_app.logger.info("Logout efetuado para usuário: %s" % (user_email, ))
             return True
 
         except Exception as e:
-            current_app.logger.error(f"Erro ao efetuar logout: {str(e)}")
+            current_app.logger.error("Erro ao efetuar logout: %s" % (str(e), ))
             return False
 
     @staticmethod
-    def is_primeira_sessao(usuario: User) -> bool:
+    def e_primeira_sessao(usuario: User) -> bool:
         """
         Verifica se esta é a primeira vez que o usuário faz login.
 

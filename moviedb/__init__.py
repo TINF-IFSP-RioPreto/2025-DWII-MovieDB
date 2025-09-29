@@ -11,7 +11,7 @@ from flask import Flask
 
 from moviedb.infra import app_logging
 from moviedb.infra.modulos import bootstrap, db, login_manager, migrate
-from services.email_service import EmailService
+from moviedb.services.email_service import EmailService
 
 
 def anonymous_required(f):
@@ -55,7 +55,7 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     app_logging.configure_logging(logging.DEBUG)
 
     app.logger.debug(
-        "Lendo a configuração da aplicação a partir do arquivo '%s'" % (config_filename,))
+            "Lendo a configuração da aplicação a partir do arquivo '%s'" % (config_filename,))
     try:
         app.config.from_file(config_filename,
                              load=json.load)
@@ -99,22 +99,22 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     if "DATABASE_ENCRYPTION_KEY" not in app.config or app.config.get(
             "DATABASE_ENCRYPTION_KEY") is None:
         app.logger.fatal(
-            "A chave 'DATABASE_ENCRYPTION_KEY' não está presente no arquivo de configuração")
+                "A chave 'DATABASE_ENCRYPTION_KEY' não está presente no arquivo de configuração")
         sys.exit(1)
 
     if "DATABASE_ENCRYPTION_SALT" not in app.config or app.config.get(
             "DATABASE_ENCRYPTION_SALT") is None:
         app.logger.warning(
-            "A chave 'DATABASE_ENCRYPTION_SALT' não está presente no arquivo de configuração")
+                "A chave 'DATABASE_ENCRYPTION_SALT' não está presente no arquivo de configuração")
         app.logger.warning(
-            "Para não invalidar os dados criptografados armazenados no banco de dados, "
-            "adicione a chave abaixo ao arquivo de configuração")
+                "Para não invalidar os dados criptografados armazenados no banco de dados, "
+                "adicione a chave abaixo ao arquivo de configuração")
 
         hash_bytes = hashlib.sha256(f"{app.config.get("SECRET_KEY")}".encode()).digest()
         app.config["DATABASE_ENCRYPTION_SALT"] = base64.urlsafe_b64encode(hash_bytes).decode(
-            'ascii').rstrip('=')[:20]
+                'ascii').rstrip('=')[:20]
         app.logger.warning(
-            "Gerando salt para a aplicação: '%s'" % (app.config["DATABASE_ENCRYPTION_SALT"],))
+                "Gerando salt para a aplicação: '%s'" % (app.config["DATABASE_ENCRYPTION_SALT"],))
 
     app.logger.debug("Registrando modulos")
     bootstrap.init_app(app)

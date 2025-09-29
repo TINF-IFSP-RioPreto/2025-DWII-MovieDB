@@ -4,9 +4,8 @@ from flask_wtf.file import FileAllowed, FileField
 from wtforms.fields.simple import BooleanField, HiddenField, PasswordField, StringField, SubmitField
 from wtforms.validators import Email, EqualTo, InputRequired, Length
 
-from moviedb.forms.validators import CampoImutavel
-from forms.validators import SenhaComplexa, UniqueEmail
-from services.image_processing_service import ImageProcessingService
+from moviedb.forms.validators import CampoImutavel, SenhaComplexa, UniqueEmail
+from moviedb.services.image_processing_service import ImageProcessingService
 
 
 class RegistrationForm(FlaskForm):
@@ -92,9 +91,11 @@ class ProfileForm(FlaskForm):
 
     foto_raw = FileField(
             label="Foto de perfil",
-            validators=[FileAllowed(upload_set=list(ImageProcessingService.SUPPORTED_FORMATS),
-                                    message=f"Apenas formatos {', '.join(ImageProcessingService.SUPPORTED_FORMATS)} "
-                                            "são permitidos")])
+            validators=[FileAllowed(
+                    upload_set=ImageProcessingService.ALLOWED_EXTENSIONS,
+                    message=f"Apenas formatos PNG, JPEG e WEBP são permitidos"
+            )]
+    )
 
     submit = SubmitField("Efetuar as mudanças...")
     remover_foto = SubmitField("e remover foto")
@@ -104,8 +105,11 @@ class Read2FACodeForm(FlaskForm):
     codigo = StringField(
             label="Código",
             validators=[
-                InputRequired(message="Informe o código fornecido pelo aplicativo autenticador"),
+                InputRequired(
+                    message="Informe o código fornecido pelo aplicativo autenticador ou um código "
+                            "de reserva"),
                 Length(min=6, max=8)],
             render_kw={'autocomplete': 'one-time-code',
-                       'pattern'     : r'^[A-Za-z0-9]{8}$'})
+                       'pattern'     : r'^([A-Za-z0-9]{6}|[A-Za-z0-9]{8})$'})  # 6 ou 8
+    # caracteres alfanuméricos
     submit = SubmitField("Enviar código")

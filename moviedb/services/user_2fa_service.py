@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pyotp
 from flask import current_app
@@ -9,8 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .backup2fa_service import Backup2FAService
 from .qrcode_service import QRCodeConfig, QRCodeService
-from .. import db
-from ..models.autenticacao import User
+from moviedb import db
+from moviedb.models.autenticacao import User
 
 
 class Autenticacao2FA(Enum):
@@ -92,6 +92,7 @@ class User2FAService:
                                                                 user=usuario.email,
                                                                 issuer=app_name,
                                                                 config=qr_config)
+        current_app.logger.debug("Iniciado processo de ativação 2FA para %s" % (usuario.email,))
 
         return TwoFASetupResult(
                 status=Autenticacao2FA.ENABLING,
@@ -134,8 +135,13 @@ class User2FAService:
             if gerar_backup_codes:
                 quantidade_backup = max(0, min(quantidade_backup, 20))
                 backup_codes = Backup2FAService.gerar_novos_codigos(usuario, quantidade_backup)
+                current_app.logger.debug(
+                    "Gerados %d códigos de reserva para usuário %s." % (quantidade_backup,
+                                                                        usuario.email,))
 
             db.session.commit()
+
+            current_app.logger.info("Ativado 2FA para usuário %s." % (usuario.email,))
 
             return TwoFASetupResult(status=Autenticacao2FA.ENABLED, backup_codes=backup_codes)
         except SQLAlchemyError as e:
@@ -196,6 +202,7 @@ class User2FAService:
         try:
             # Confirma se 2FA está habilitado
             if not usuario.usa_2fa or not usuario.otp_secret:
+                current_app.logger.warning("Tentativa de uso de 2FA por usuário sem 2FA ativado (%s)." % (usuario.email,))
                 return TwoFAValidationResult(
                         success=False,
                         method_used=Autenticacao2FA.NOT_ENABLED,
@@ -205,6 +212,8 @@ class User2FAService:
 
             # Verifica se o código já foi usado recentemente
             if codigo == usuario.ultimo_otp:
+                current_app.logger.warning(
+                    "Tentativa de uso de código 2FA repetido pelo usuário %s." % (usuario.email,))
                 warnings.append("Atenção: Este código já foi utilizado recentemente.")
                 return TwoFAValidationResult(
                         success=False,
@@ -216,11 +225,15 @@ class User2FAService:
             # Tenta TOTP primeiro
             totp = pyotp.TOTP(usuario.otp_secret)
             if totp.verify(codigo, valid_window=1):
+                current_app.logger.debug("Código 2FA validado para usuário %s." % (usuario.email,))
                 usuario.ultimo_otp = codigo
                 db.session.commit()
 
                 # Verifica status dos códigos de backup
                 backup_count = Backup2FAService.contar_tokens_disponiveis(usuario)
+                current_app.logger.debug(
+                        "Códigos 2FA reservas disponíveis para %s: %d." % (usuario.email,
+                                                                           backup_count))
                 if backup_count <= 2:
                     warnings.append(f"Poucos códigos de backup restantes: {backup_count}")
 
@@ -235,6 +248,9 @@ class User2FAService:
             # Tenta código de backup
             if Backup2FAService.consumir_token(usuario, codigo):
                 backup_count = Backup2FAService.contar_tokens_disponiveis(usuario)
+                current_app.logger.debug("Código 2FA reserva validado para usuário %s." % (usuario.email,))
+                current_app.logger.debug(
+                    "Códigos 2FA reservas disponíveis para %s: %d." % (usuario.email, backup_count))
                 warnings.append("Código de backup utilizado")
                 if backup_count == 0:
                     warnings.append("CRÍTICO: Nenhum código de backup restante")
@@ -251,6 +267,7 @@ class User2FAService:
                 )
 
             # Codigo inválido
+            current_app.logger.warning("Código 2FA inválido para usuário %s." % (usuario.email,))
             return TwoFAValidationResult(
                     success=False,
                     method_used=Autenticacao2FA.INVALID_CODE,
@@ -296,24 +313,33 @@ class User2FAService:
                     last_login=usuario.ultimo_login)
         except Exception as e:
             current_app.logger.error(
-                "Erro ao obter status 2FA para %s: %s" % (usuario.email, str(e),))
+                    "Erro ao obter status 2FA para %s: %s" % (usuario.email, str(e),))
             raise User2FAError(f"Erro ao obter status 2FA: {str(e)}") from e
 
     @staticmethod
-    def otp_secret_formatted(usuario: User) -> Optional[str]:
+    def otp_secret_formatted(value: Union[User, str]) -> Optional[str]:
         """
         Obtém o segredo OTP formatado para exibição.
 
         Args:
-            usuario: Instância do usuário
+            value: Instância do usuário ou string do segredo OTP
 
         Returns:
             str | None: Segredo OTP formatado ou None se não disponível
+
+        Raises:
+            ValueError: Se o parâmetro 'value' for inválido
         """
-        if not usuario.otp_secret:
+        if isinstance(value, str):
+            secret = value
+        elif isinstance(value, User):
+            secret = value.otp_secret
+        else:
+            raise ValueError("Parâmetro 'value' deve ser uma instância de User ou str")
+        if not secret:
             return None
         # Formata em grupos de 4 caracteres
-        return ' '.join(usuario.otp_secret[i:i + 4] for i in range(0, len(usuario.otp_secret), 4))
+        return ' '.join(secret[i:i + 4] for i in range(0, len(secret), 4))
 
     @staticmethod
     def validar_tentative_otp_secret(tentative_secret: str,
