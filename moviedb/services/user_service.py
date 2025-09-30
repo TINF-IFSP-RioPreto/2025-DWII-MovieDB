@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from moviedb import db
 from moviedb.models.autenticacao import User
 from .email_service import EmailValidationService
-from .token_service import JWTService, JWT_action
+from .token_service import JWT_action, JWTService
 
 
 class UserOperationStatus(Enum):
@@ -76,16 +76,16 @@ class UserService:
         current_app.logger.debug("Token de validação de email: %s" % (token,))
 
         body = render_template('auth/email/email_confirmation.jinja2',
-                             nome=usuario.nome,
-                             url=url_for('auth.valida_email', token=token, _external=True))
+                               nome=usuario.nome,
+                               url=url_for('auth.valida_email', token=token, _external=True))
         result = email_service.send_email(to=usuario.email,
-                                         subject="Confirme o seu email",
-                                         text_body=body)
+                                          subject="Confirme o seu email",
+                                          text_body=body)
 
         email_sent = result.success
         if not email_sent:
             current_app.logger.error(
-                "Erro no envio do email de confirmação para %s" % (usuario.email,))
+                    "Erro no envio do email de confirmação para %s" % (usuario.email,))
 
         return token, email_sent
 
@@ -107,7 +107,7 @@ class UserService:
         try:
             if usuario.ativo:
                 current_app.logger.warning(
-                    "Tentativa de confirmar email já confirmado: %s" % (usuario.email,))
+                        "Tentativa de confirmar email já confirmado: %s" % (usuario.email,))
                 return True  # Já está confirmado, não é erro
 
             usuario.ativo = True
@@ -121,7 +121,7 @@ class UserService:
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error(
-                "Erro ao confirmar email do usuário %s: %s" % (usuario.email, str(e)))
+                    "Erro ao confirmar email do usuário %s: %s" % (usuario.email, str(e)))
             raise e
 
     @staticmethod
@@ -142,7 +142,8 @@ class UserService:
         try:
             if not usuario.ativo:
                 current_app.logger.warning(
-                    "Tentativa de desconfirmar email ainda não confirmado: %s" % (usuario.email,))
+                        "Tentativa de desconfirmar email ainda não confirmado: %s" % (
+                            usuario.email,))
                 return True  # Já está confirmado, não é erro
 
             usuario.ativo = False
@@ -156,7 +157,7 @@ class UserService:
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error(
-                "Erro ao desconfirmar email do usuário %s: %s" % (usuario.email, str(e)))
+                    "Erro ao desconfirmar email do usuário %s: %s" % (usuario.email, str(e)))
             raise e
 
     @staticmethod
@@ -210,11 +211,13 @@ class UserService:
             raise  # Re-propaga erro de validação
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error("Erro ao efetuar login do usuário %s: %s" % (usuario.email, str(e)))
+            current_app.logger.error(
+                "Erro ao efetuar login do usuário %s: %s" % (usuario.email, str(e)))
             raise e
 
     @staticmethod
-    def set_pending_2fa_token_data(usuario: User, remember_me: bool = False, next_page: str = None) -> str:
+    def set_pending_2fa_token_data(usuario: User, remember_me: bool = False,
+                                   next_page: str = None) -> str:
         """
         Cria um token para iniciar o fluxo de autenticação de dois fatores (2FA).
 
@@ -227,12 +230,12 @@ class UserService:
             str: Token gerado para 2FA
         """
         return JWTService.create(action=JWT_action.PENDING_2FA,
-                              sub=usuario.id,
-                              expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
-                              extra_data={
-                                  'remember_me': remember_me,
-                                  'next'       : next_page
-                              })
+                                 sub=usuario.id,
+                                 expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
+                                 extra_data={
+                                     'remember_me': remember_me,
+                                     'next'       : next_page
+                                 })
 
     @staticmethod
     def get_pending_2fa_token_data(token: str) -> dict:
@@ -268,11 +271,11 @@ class UserService:
             user_email = usuario.email  # Captura antes do logout
             logout_user()
 
-            current_app.logger.info("Logout efetuado para usuário: %s" % (user_email, ))
+            current_app.logger.info("Logout efetuado para usuário: %s" % (user_email,))
             return True
 
         except Exception as e:
-            current_app.logger.error("Erro ao efetuar logout: %s" % (str(e), ))
+            current_app.logger.error("Erro ao efetuar logout: %s" % (str(e),))
             return False
 
     @staticmethod
@@ -290,7 +293,7 @@ class UserService:
 
     @staticmethod
     def registrar_usuario(nome: str, email: str, password: str,
-                         email_service) -> UserRegistrationResult:
+                          email_service) -> UserRegistrationResult:
         """
         Registra um novo usuário no sistema e envia email de confirmação.
 
@@ -322,25 +325,25 @@ class UserService:
             current_app.logger.info("Usuário registrado: %s" % (usuario.email,))
 
             return UserRegistrationResult(
-                status=UserOperationStatus.SUCCESS,
-                user=usuario,
-                token=token,
-                email_sent=email_sent
+                    status=UserOperationStatus.SUCCESS,
+                    user=usuario,
+                    token=token,
+                    email_sent=email_sent
             )
 
         except ValueError as e:
             db.session.rollback()
             current_app.logger.error("Erro de validação ao registrar usuário: %s" % (str(e),))
             return UserRegistrationResult(
-                status=UserOperationStatus.UNKNOWN,
-                error_message=str(e)
+                    status=UserOperationStatus.UNKNOWN,
+                    error_message=str(e)
             )
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error("Erro de banco de dados ao registrar usuário: %s" % (str(e),))
             return UserRegistrationResult(
-                status=UserOperationStatus.DATABASE_ERROR,
-                error_message=str(e)
+                    status=UserOperationStatus.DATABASE_ERROR,
+                    error_message=str(e)
             )
 
     @staticmethod
@@ -360,24 +363,25 @@ class UserService:
         except (ValueError, TypeError):
             current_app.logger.warning("UUID inválido fornecido: %s" % (user_id,))
             return EmailValidationResult(
-                status=UserOperationStatus.INVALID_UUID,
-                error_message="ID de usuário inválido"
+                    status=UserOperationStatus.INVALID_UUID,
+                    error_message="ID de usuário inválido"
             )
 
         usuario = User.get_by_id(uuid_obj)
         if usuario is None:
-            current_app.logger.warning("Tentativa de reenvio de email para usuário inexistente: %s" % (user_id,))
+            current_app.logger.warning(
+                "Tentativa de reenvio de email para usuário inexistente: %s" % (user_id,))
             return EmailValidationResult(
-                status=UserOperationStatus.USER_NOT_FOUND,
-                error_message="Usuário inexistente"
+                    status=UserOperationStatus.USER_NOT_FOUND,
+                    error_message="Usuário inexistente"
             )
 
         if usuario.ativo:
             current_app.logger.info("Usuário %s já está ativo" % (usuario.email,))
             return EmailValidationResult(
-                status=UserOperationStatus.USER_ALREADY_ACTIVE,
-                user=usuario,
-                error_message="Usuário já está ativo"
+                    status=UserOperationStatus.USER_ALREADY_ACTIVE,
+                    user=usuario,
+                    error_message="Usuário já está ativo"
             )
 
         # Gera token e envia email de confirmação
@@ -385,19 +389,19 @@ class UserService:
 
         if not email_sent:
             return EmailValidationResult(
-                status=UserOperationStatus.EMAIL_SEND_ERROR,
-                user=usuario,
-                token=token,
-                email_sent=False,
-                error_message="Erro no envio do email"
+                    status=UserOperationStatus.EMAIL_SEND_ERROR,
+                    user=usuario,
+                    token=token,
+                    email_sent=False,
+                    error_message="Erro no envio do email"
             )
 
         current_app.logger.info("Email de revalidação enviado para %s" % (usuario.email,))
         return EmailValidationResult(
-            status=UserOperationStatus.SUCCESS,
-            user=usuario,
-            token=token,
-            email_sent=True
+                status=UserOperationStatus.SUCCESS,
+                user=usuario,
+                token=token,
+                email_sent=True
         )
 
     @staticmethod
@@ -416,31 +420,31 @@ class UserService:
         if not (claims.get('valid', False) and {'sub', 'action'}.issubset(claims)):
             current_app.logger.error("Token incorreto ou incompleto: %s" % (claims,))
             return EmailValidationResult(
-                status=UserOperationStatus.INVALID_TOKEN,
-                error_message="Token incorreto ou incompleto"
+                    status=UserOperationStatus.INVALID_TOKEN,
+                    error_message="Token incorreto ou incompleto"
             )
 
         if claims.get('action') != JWT_action.VALIDAR_EMAIL:
             current_app.logger.error("Ação de token inválida: %s" % (claims.get('action'),))
             return EmailValidationResult(
-                status=UserOperationStatus.INVALID_TOKEN,
-                error_message="Token inválido"
+                    status=UserOperationStatus.INVALID_TOKEN,
+                    error_message="Token inválido"
             )
 
         usuario = User.get_by_email(claims.get('sub'))
         if usuario is None:
             current_app.logger.warning("Tentativa de validação de email para usuário inexistente")
             return EmailValidationResult(
-                status=UserOperationStatus.USER_NOT_FOUND,
-                error_message="Usuário não encontrado"
+                    status=UserOperationStatus.USER_NOT_FOUND,
+                    error_message="Usuário não encontrado"
             )
 
         if usuario.ativo:
             current_app.logger.info("Usuário %s já estava ativo" % (usuario.email,))
             return EmailValidationResult(
-                status=UserOperationStatus.USER_ALREADY_ACTIVE,
-                user=usuario,
-                error_message="Usuário já está ativo"
+                    status=UserOperationStatus.USER_ALREADY_ACTIVE,
+                    user=usuario,
+                    error_message="Usuário já está ativo"
             )
 
         # Confirma o email
@@ -448,8 +452,8 @@ class UserService:
         current_app.logger.info("Email validado com sucesso para %s" % (usuario.email,))
 
         return EmailValidationResult(
-            status=UserOperationStatus.SUCCESS,
-            user=usuario
+                status=UserOperationStatus.SUCCESS,
+                user=usuario
         )
 
     @staticmethod
@@ -474,31 +478,31 @@ class UserService:
         usuario = User.get_by_email(email_normalizado)
         if usuario is None:
             current_app.logger.warning(
-                "Pedido de reset de senha para usuário inexistente (%s)" % (email_normalizado,))
+                    "Pedido de reset de senha para usuário inexistente (%s)" % (email_normalizado,))
             # Por segurança, retorna SUCCESS mesmo se usuário não existir
             return PasswordResetResult(status=UserOperationStatus.SUCCESS)
 
         # Gera token e envia email
         token = JWTService.create(JWT_action.RESET_PASSWORD, sub=usuario.email)
         body = render_template('auth/email/email_new_password.jinja2',
-                             nome=usuario.nome,
-                             url=url_for('auth.reset_password', token=token, _external=True))
+                               nome=usuario.nome,
+                               url=url_for('auth.reset_password', token=token, _external=True))
         result = email_service.send_email(to=usuario.email,
-                                         subject="Altere a sua senha",
-                                         text_body=body)
+                                          subject="Altere a sua senha",
+                                          text_body=body)
 
         if not result.success:
             current_app.logger.error("Erro ao enviar email de reset para %s" % (usuario.email,))
             return PasswordResetResult(
-                status=UserOperationStatus.EMAIL_SEND_ERROR,
-                user=usuario,
-                error_message="Erro no envio do email"
+                    status=UserOperationStatus.EMAIL_SEND_ERROR,
+                    user=usuario,
+                    error_message="Erro no envio do email"
             )
 
         current_app.logger.info("Email de reset de senha enviado para %s" % (usuario.email,))
         return PasswordResetResult(
-            status=UserOperationStatus.SUCCESS,
-            user=usuario
+                status=UserOperationStatus.SUCCESS,
+                user=usuario
         )
 
     @staticmethod
@@ -518,23 +522,23 @@ class UserService:
         if not (claims.get('valid', False) and {'sub', 'action'}.issubset(claims)):
             current_app.logger.warning("Token incorreto ou incompleto")
             return PasswordResetResult(
-                status=UserOperationStatus.INVALID_TOKEN,
-                error_message="Token incorreto ou incompleto"
+                    status=UserOperationStatus.INVALID_TOKEN,
+                    error_message="Token incorreto ou incompleto"
             )
 
         if claims.get('action') != JWT_action.RESET_PASSWORD:
             current_app.logger.warning("Ação de token inválida: %s" % (claims.get('action'),))
             return PasswordResetResult(
-                status=UserOperationStatus.INVALID_TOKEN,
-                error_message="Token inválido"
+                    status=UserOperationStatus.INVALID_TOKEN,
+                    error_message="Token inválido"
             )
 
         usuario = User.get_by_email(claims.get('sub'))
         if usuario is None:
             current_app.logger.warning("Tentativa de reset de senha para usuário inexistente")
             return PasswordResetResult(
-                status=UserOperationStatus.USER_NOT_FOUND,
-                error_message="Usuário não encontrado"
+                    status=UserOperationStatus.USER_NOT_FOUND,
+                    error_message="Usuário não encontrado"
             )
 
         try:
@@ -543,14 +547,14 @@ class UserService:
             current_app.logger.info("Senha redefinida com sucesso para %s" % (usuario.email,))
 
             return PasswordResetResult(
-                status=UserOperationStatus.SUCCESS,
-                user=usuario
+                    status=UserOperationStatus.SUCCESS,
+                    user=usuario
             )
 
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error("Erro ao redefinir senha: %s" % (str(e),))
             return PasswordResetResult(
-                status=UserOperationStatus.DATABASE_ERROR,
-                error_message=str(e)
+                    status=UserOperationStatus.DATABASE_ERROR,
+                    error_message=str(e)
             )

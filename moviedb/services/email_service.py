@@ -437,11 +437,11 @@ class EmailService:
             result = self.provider.send(message)
 
             current_app.logger.debug(
-                "Email enviado via %s: %s - %s (ID: %s)" % (self.provider.get_provider_name(),
-                                                            to,
-                                                            subject,
-                                                            result.message_id if
-                                                            result.message_id else 'N/A'))
+                    "Email enviado via %s: %s - %s (ID: %s)" % (self.provider.get_provider_name(),
+                                                                to,
+                                                                subject,
+                                                                result.message_id if
+                                                                result.message_id else 'N/A'))
 
             return result
 

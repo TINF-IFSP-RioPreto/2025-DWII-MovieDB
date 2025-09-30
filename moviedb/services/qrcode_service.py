@@ -18,6 +18,7 @@ class QRCodeConfig:
         if self.border < 0:
             raise ValueError("border não pode ser negativo")
 
+
 class QRCodeGenerator(ABC):
     """Interface para geração de QR Codes."""
 
@@ -105,8 +106,8 @@ class QRCodeService:
         return self.generator.generate(data, config)
 
     def generate_qr_code_base64(self,
-                         data: str,
-                         config: Optional[QRCodeConfig] = None) -> str:
+                                data: str,
+                                config: Optional[QRCodeConfig] = None) -> str:
         """Gera um QR Code a partir dos dados fornecidos em base64.
 
         Args:

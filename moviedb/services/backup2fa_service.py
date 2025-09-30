@@ -12,7 +12,8 @@ from moviedb.models.autenticacao import Backup2FA, User
 
 
 class KeepForDays(Enum):
-    """ Enumeração que define opções para o número de dias para manter dados antes de removê-los fisicamente."""
+    """ Enumeração que define opções para o número de dias para manter dados antes de removê-los
+    fisicamente."""
     ZERO = 0
     ONE_WEEK = 7
     TWO_WEEKS = 14
@@ -44,7 +45,8 @@ class Backup2FAService:
             list[Backup2FA]: Lista de códigos de backup 2FA disponíveis.
         """
         if unused_only:
-            return list(Backup2FA.get_all_by(criteria={"usuario_id": usuario.id, "utilizado": False}).all())
+            return list(
+                Backup2FA.get_all_by(criteria={"usuario_id": usuario.id, "utilizado": False}).all())
         else:
             return list(Backup2FA.get_all_by(criteria={"usuario_id": usuario.id}).all())
 

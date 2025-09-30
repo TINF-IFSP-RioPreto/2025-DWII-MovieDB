@@ -384,27 +384,28 @@ class User2FAService:
         """
         if not token_sessao:
             current_app.logger.warning(
-                "Tentativa de ativação 2FA sem token de sessão para usuário %s" % (usuario.email,))
+                    "Tentativa de ativação 2FA sem token de sessão para usuário %s" % (
+                        usuario.email,))
             return TwoFASetupResult(status=Autenticacao2FA.MISSING_TOKEN)
 
         # Verifica o token JWT
         dados_token = JWTService.verify(token_sessao)
         if not dados_token.get('valid', False):
             current_app.logger.warning(
-                "Token de ativação 2FA inválido para usuário %s" % (usuario.email,))
+                    "Token de ativação 2FA inválido para usuário %s" % (usuario.email,))
             return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
 
         # Valida a ação do token
         if dados_token.get('action') != JWT_action.ACTIVATING_2FA:
             current_app.logger.warning(
-                "Token com ação inválida para ativação 2FA: %s" % (dados_token.get('action'),))
+                    "Token com ação inválida para ativação 2FA: %s" % (dados_token.get('action'),))
             return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
 
         # Valida extra_data
         extra_data = dados_token.get('extra_data')
         if not extra_data:
             current_app.logger.warning(
-                "Token de ativação 2FA sem extra_data para usuário %s" % (usuario.email,))
+                    "Token de ativação 2FA sem extra_data para usuário %s" % (usuario.email,))
             return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
 
         # Extrai dados necessários
@@ -415,21 +416,21 @@ class User2FAService:
         # Valida presença dos dados
         if not tentative_otp or not qr_code_base64:
             current_app.logger.warning(
-                "Token de ativação 2FA incompleto para usuário %s" % (usuario.email,))
+                    "Token de ativação 2FA incompleto para usuário %s" % (usuario.email,))
             return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
 
         # Valida se o token é para o usuário correto
         if str(usuario.id) != str(user_id):
             current_app.logger.warning(
-                "Tentativa de uso de token 2FA de outro usuário por %s" % (usuario.email,))
+                    "Tentativa de uso de token 2FA de outro usuário por %s" % (usuario.email,))
             return TwoFASetupResult(status=Autenticacao2FA.WRONG_USER)
 
         current_app.logger.debug(
-            "Token de ativação 2FA validado com sucesso para usuário %s" % (usuario.email,))
+                "Token de ativação 2FA validado com sucesso para usuário %s" % (usuario.email,))
 
         return TwoFASetupResult(
-            status=Autenticacao2FA.ENABLING,
-            secret=tentative_otp,
-            qr_code_base64=qr_code_base64,
-            user_id=user_id
+                status=Autenticacao2FA.ENABLING,
+                secret=tentative_otp,
+                qr_code_base64=qr_code_base64,
+                user_id=user_id
         )

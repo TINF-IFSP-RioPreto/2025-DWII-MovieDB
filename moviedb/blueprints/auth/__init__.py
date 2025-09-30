@@ -8,10 +8,9 @@ from markupsafe import Markup
 
 from moviedb import anonymous_required, db
 from moviedb.models.autenticacao import User
-from moviedb.services.email_service import EmailValidationService
 from moviedb.services.token_service import JWT_action, JWTService
 from moviedb.services.user_2fa_service import Autenticacao2FA, User2FAService
-from moviedb.services.user_service import UserService, UserOperationStatus
+from moviedb.services.user_service import UserOperationStatus, UserService
 from .forms_auth import AskToResetPasswordForm, LoginForm, ProfileForm, \
     Read2FACodeForm, RegistrationForm, SetNewPasswordForm
 
@@ -42,10 +41,10 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         resultado = UserService.registrar_usuario(
-            nome=form.nome.data,
-            email=form.email.data,
-            password=form.password.data,
-            email_service=email_service
+                nome=form.nome.data,
+                email=form.email.data,
+                password=form.password.data,
+                email_service=email_service
         )
 
         if resultado.status == UserOperationStatus.SUCCESS:
@@ -125,7 +124,13 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        usuario = User.get_by_email(form.email.data)
+        from moviedb.services.email_service import EmailValidationService
+        try:
+            email_normalizado = EmailValidationService.normalize(form.email.data)
+        except ValueError:
+            flash("Email ou senha incorretos", category='warning')
+            return redirect(url_for('auth.login'))
+        usuario = User.get_by_email(email_normalizado)
 
         if usuario is None or not usuario.check_password(form.password.data):
             flash("Email ou senha incorretos", category='warning')
@@ -139,8 +144,10 @@ def login():
             # CRITICO: Token indicando que a verificação da senha está feita, mas o 2FA
             #  ainda não. Necessário para proteger a rota /get2fa.
             session['pending_2fa_token'] = UserService.set_pending_2fa_token_data(usuario,
-                                                                                  bool(form.remember_me.data),
-                                                                                  request.args.get('next'))
+                                                                                  bool(
+                                                                                      form.remember_me.data),
+                                                                                  request.args.get(
+                                                                                      'next'))
             current_app.logger.debug("pending_2fa_token: %s" % (session['pending_2fa_token'],))
             flash("Conclua o login digitando o código do segundo fator de autenticação",
                   category='info')

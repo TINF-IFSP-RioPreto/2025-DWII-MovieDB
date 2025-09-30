@@ -6,12 +6,11 @@ from typing import Optional
 from flask import current_app
 from flask_login import UserMixin
 from sqlalchemy import DateTime, ForeignKey, select, String, Text, Uuid
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from moviedb import db
 from moviedb.services.email_service import EmailValidationService
-from moviedb.services.image_processing_service import ImageProcessingError, ImageProcessingService
+from moviedb.services.image_processing_service import ImageProcessingService
 from .custom_types import EncryptedType
 from .mixins import AuditMixin, BasicRepositoryMixin
 
