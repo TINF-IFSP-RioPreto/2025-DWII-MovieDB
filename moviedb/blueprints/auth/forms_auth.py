@@ -9,6 +9,11 @@ from moviedb.services.image_processing_service import ImageProcessingService
 
 
 class RegistrationForm(FlaskForm):
+    """
+    Form for user registration with email validation.
+
+    Validates user name, email uniqueness, and password complexity.
+    """
     nome = StringField(
             label="Nome",
             validators=[InputRequired(message="É obrigatório informar um nome para cadastro"),
@@ -31,6 +36,11 @@ class RegistrationForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
+    """
+    Form for user login with email and password.
+
+    Includes optional remember me functionality.
+    """
     email = StringField(
             label="Email",
             validators=[InputRequired(message="É obrigatório informar um email para login"),
@@ -46,6 +56,13 @@ class LoginForm(FlaskForm):
 
 
 class SetNewPasswordForm(FlaskForm):
+    # @formatter:off
+    """
+    Form for setting a new password.
+
+    Validates password complexity and confirmation match.
+    """
+    # @formatter:on
     password = PasswordField(
             label="Nova senha",
             validators=[InputRequired(message="É necessário escolher uma senha"),
@@ -59,6 +76,13 @@ class SetNewPasswordForm(FlaskForm):
 
 
 class AskToResetPasswordForm(FlaskForm):
+    # @formatter:off
+    """
+    Form for requesting a password reset.
+
+    Validates email format before sending password reset link.
+    """
+    # @formatter:on
     email = StringField(
             label="Email",
             validators=[
@@ -71,7 +95,20 @@ class AskToResetPasswordForm(FlaskForm):
 
 
 class ProfileForm(FlaskForm):
+    """
+    Form for updating user profile information.
+
+    Allows modification of name, 2FA settings, and profile photo.
+    Email is immutable once set.
+    """
     def __init__(self, user=None, **kwargs):
+        """
+        Initialize profile form with reference user.
+
+        Args:
+            user: moviedb.models.user.User | None: User object to validate against, defaults to current_user.
+            **kwargs: dict: Additional keyword arguments passed to FlaskForm.
+        """
         super().__init__(**kwargs)
         self.reference_obj = user or current_user
 
@@ -102,6 +139,11 @@ class ProfileForm(FlaskForm):
 
 
 class Read2FACodeForm(FlaskForm):
+    """
+    Form for reading and validating 2FA codes.
+
+    Accepts either 6-character TOTP codes or 8-character backup codes.
+    """
     codigo = StringField(
             label="Código",
             validators=[

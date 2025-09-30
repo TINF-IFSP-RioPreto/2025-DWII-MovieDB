@@ -68,17 +68,15 @@ class User2FAError(Exception):
 
 class User2FAService:
     """Serviço principal para gestão completa de 2FA de usuários."""
-
     @staticmethod
     def iniciar_ativacao_2fa(usuario: User) -> Optional[TwoFASetupResult]:
-        """
-        Inicia o processo de configuração do 2FA para um usuário.
+        """Inicia o processo de configuração do 2FA para um usuário.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
-            TwoFASetupResult: Dados necessários para completar a configuração
+            typing.Optional[TwoFASetupResult]: Dados necessários para completar a configuração
 
         Raises:
             User2FAError: Em caso de erro na configuração
@@ -123,15 +121,15 @@ class User2FAService:
                                codigo_confirmacao: str,
                                gerar_backup_codes: bool = True,
                                quantidade_backup: int = 10) -> TwoFASetupResult:
-        """
-        Confirma a ativação do 2FA para o usuário, validando o código TOTP.
+        """Confirma a ativação do 2FA para o usuário, validando o código TOTP.
 
         Args:
-            usuario: Instância do usuário
-            secret: Segredo TOTP gerado
-            codigo_confirmacao: Código TOTP fornecido pelo usuário
-            gerar_backup_codes: Se deve gerar códigos de backup
-            quantidade_backup: Quantidade de códigos de backup
+            usuario (User): Instância do usuário
+            secret (str): Segredo TOTP gerado
+            codigo_confirmacao (str): Código TOTP fornecido pelo usuário
+            gerar_backup_codes (bool): Se deve gerar códigos de backup. (Default: True)
+            quantidade_backup (int): Quantidade de códigos de backup (mínimo 0, máximo 20).
+                (Default: 10)
 
         Returns:
             TwoFASetupResult: Resultado da ativação, incluindo códigos de backup se gerados
@@ -171,11 +169,10 @@ class User2FAService:
 
     @staticmethod
     def desativar_2fa(usuario: User) -> TwoFASetupResult:
-        """
-        Desativa o 2FA para o usuário, removendo segredos e códigos de backup.
+        """Desativa o 2FA para o usuário, removendo segredos e códigos de backup.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             TwoFASetupResult: Resultado da desativação
@@ -204,12 +201,11 @@ class User2FAService:
 
     @staticmethod
     def validar_codigo_2fa(usuario: User, codigo: str) -> TwoFAValidationResult:
-        """
-        Valida um código 2FA (TOTP ou backup) para o usuário.
+        """Valida um código 2FA (TOTP ou backup) para o usuário.
 
         Args:
-            usuario: Instância do usuário
-            codigo: Código 2FA fornecido
+            usuario (User): Instância do usuário
+            codigo (str): Código 2FA fornecido
 
         Returns:
             TwoFAValidationResult: Resultado da validação, incluindo metodo usado e mensagens de
@@ -309,11 +305,10 @@ class User2FAService:
 
     @staticmethod
     def obter_status_2fa(usuario: User) -> TwoFAStatus:
-        """
-        Obtém o status atual do 2FA para o usuário.
+        """Obtém o status atual do 2FA para o usuário.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             TwoFAStatus: Status do 2FA, incluindo se está habilitado, códigos de backup e último
@@ -341,14 +336,13 @@ class User2FAService:
 
     @staticmethod
     def otp_secret_formatted(value: Union[User, str]) -> Optional[str]:
-        """
-        Obtém o segredo OTP formatado para exibição.
+        """Obtém o segredo OTP formatado para exibição.
 
         Args:
-            value: Instância do usuário ou string do segredo OTP
+            value (Union[User, str]): Instância do usuário ou string do segredo OTP
 
         Returns:
-            str | None: Segredo OTP formatado ou None se não disponível
+            typing.Optional[str]: Segredo OTP formatado ou None se não disponível
 
         Raises:
             ValueError: Se o parâmetro 'value' for inválido
@@ -372,12 +366,11 @@ class User2FAService:
 
     @staticmethod
     def validar_token_ativacao_2fa(usuario: User, token_sessao: str) -> TwoFASetupResult:
-        """
-        Valida o token de ativação 2FA da sessão e extrai os dados necessários.
+        """Valida o token de ativação 2FA da sessão e extrai os dados necessários.
 
         Args:
-            usuario: Instância do usuário atual
-            token_sessao: Token JWT da sessão ('activating_2fa_token')
+            usuario (User): Instância do usuário atual
+            token_sessao (str): Token JWT da sessão ('activating_2fa_token')
 
         Returns:
             TwoFASetupResult: Resultado da validação com secret, qr_code e status

@@ -23,12 +23,11 @@ class EmailMessage:
 
 
 class EmailValidationService:
-    """Serviço responsável pela validação de um endereco de email."""
-
+    """Serviço responsável pela validação de um endereco de email.
+    """
     @staticmethod
     def is_valid(email: str) -> bool:
-        """
-        Valida o formato do endereço de email.
+        """Valida o formato do endereço de email.
 
         Args:
             email (str): Endereço de email a ser validado.
@@ -46,8 +45,7 @@ class EmailValidationService:
 
     @staticmethod
     def normalize(email: str) -> str:
-        """
-        Normaliza o endereço de email.
+        """Normaliza o endereço de email.
 
         Args:
             email (str): Endereço de email a ser normalizado.
@@ -79,61 +77,69 @@ class EmailResult:
 
 
 class EmailProviderError(Exception):
-    """Exceção base para erros de provedores de email."""
+    # @formatter:off
+    """
+    Exceção base para erros de provedores de email.
+    """
+    # @formatter:on
     pass
 
 
 class EmailProvider(ABC):
-    """Interface abstrata para provedores de email."""
-
+    """Interface abstrata para provedores de email.
+    """
     @abstractmethod
     def send(self, message: EmailMessage) -> EmailResult:
-        """
-        Envia um email usando o provedor.
+        """Envia um email usando o provedor.
 
         Args:
-            message: Mensagem a ser enviada
+            message (EmailMessage): Mensagem a ser enviada.
 
         Returns:
-            EmailResult: Resultado do envio com informações do provedor
+            EmailResult: Resultado do envio com informações do provedor.
 
         Raises:
-            EmailProviderError: Em caso de erro no envio
+            EmailProviderError: Em caso de erro no envio.
         """
         pass
 
     @abstractmethod
     def get_provider_name(self) -> str:
-        """Retorna o nome do provedor."""
+        """Retorna o nome do provedor.
+
+        Returns:
+            str: Nome do provedor.
+        """
         pass
 
 
 class PostmarkProvider(EmailProvider):
-    """Provedor de email usando o Postmark."""
-
+    """Provedor de email usando o Postmark.
+    """
     def __init__(self, api_key: str):
-        """
-        Inicializa o provedor Postmark.
+        """Inicializa o provedor Postmark.
 
         Args:
             api_key (str): Chave da API do Postmark.
+
+        Raises:
+            ValueError: Se a chave da API for inválida.
         """
         if not api_key or not isinstance(api_key, str):
             raise ValueError("A chave da API do Postmark é obrigatória e deve ser uma string.")
         self._api_key = api_key
 
     def send(self, message: EmailMessage) -> EmailResult:
-        """
-        Envia um email usando o Postmark.
+        """Envia um email usando o Postmark.
 
         Args:
-            message: Mensagem a ser enviada
+            message (EmailMessage): Mensagem a ser enviada.
 
         Returns:
-            EmailResult: Resultado do envio com informações do Postmark
+            EmailResult: Resultado do envio com informações do Postmark.
 
         Raises:
-            EmailProviderError: Em caso de erro no envio
+            EmailProviderError: Em caso de erro no envio.
         """
         try:
             from postmarker.core import PostmarkClient
@@ -188,8 +194,8 @@ class PostmarkProvider(EmailProvider):
 
 
 class SMTPProvider(EmailProvider):
-    """Provedor de email usando SMTP padrão."""
-
+    """Provedor de email usando SMTP padrão.
+    """
     def __init__(self, smtp_server: str, smtp_port: int, username: str, password: str,
                  use_tls: bool = True):
         self._smtp_server = smtp_server
@@ -199,7 +205,17 @@ class SMTPProvider(EmailProvider):
         self._use_tls = use_tls
 
     def send(self, message: EmailMessage) -> EmailResult:
-        """Envia email via SMTP."""
+        """Envia email via SMTP.
+
+        Args:
+            message (EmailMessage): Mensagem a ser enviada.
+
+        Returns:
+            EmailResult: Resultado do envio.
+
+        Raises:
+            EmailProviderError: Em caso de erro no envio.
+        """
         try:
             import smtplib
             from email.mime.text import MIMEText
@@ -266,14 +282,21 @@ class SMTPProvider(EmailProvider):
 
 
 class MockProvider(EmailProvider):
-    """Provedor mock para desenvolvimento/testes."""
-
+    """Provedor mock para desenvolvimento/testes.
+    """
     def __init__(self, log_emails: bool = True):
         self.log_emails = log_emails
         self.sent_emails = []  # Para testes
 
     def send(self, message: EmailMessage) -> EmailResult:
-        """Simula envio de email."""
+        """Simula envio de email.
+
+        Args:
+            message (EmailMessage): Mensagem a ser enviada.
+
+        Returns:
+            EmailResult: Resultado simulado do envio.
+        """
         import uuid
         from datetime import datetime
 
@@ -315,17 +338,25 @@ class MockProvider(EmailProvider):
         return "Mock (Development)"
 
     def get_sent_emails(self) -> List[Dict[str, Any]]:
-        """Retorna lista de emails enviados (para testes)."""
+        """Retorna lista de emails enviados (para testes).
+
+        Returns:
+            typing.List[typing.Dict[str, typing.Any]]: Lista de emails enviados.
+        """
         return self.sent_emails.copy()
 
     def clear_sent_emails(self):
-        """Limpa lista de emails enviados."""
+        """Limpa lista de emails enviados.
+
+        Returns:
+            None
+        """
         self.sent_emails.clear()
 
 
 class EmailService:
-    """Serviço principal para envio de emails."""
-
+    """Serviço principal para envio de emails.
+    """
     def __init__(self,
                  provider: EmailProvider,
                  default_from_email: str,
@@ -336,14 +367,16 @@ class EmailService:
 
     @classmethod
     def create_from_config(cls, app_config: Dict[str, Any]) -> 'EmailService':
-        """
-        Cria instância do EmailService a partir da configuração da aplicação.
+        """Cria instância do EmailService a partir da configuração da aplicação.
 
         Args:
-            app_config: Dicionário de configuração da app
+            app_config (typing.Dict[str, typing.Any]): Dicionário de configuração da app.
 
         Returns:
-            EmailService: Instância configurada
+            EmailService: Instância configurada.
+
+        Raises:
+            ValueError: Se a configuração for inválida ou campos obrigatórios estiverem faltando.
         """
         send_email = app_config.get('SEND_EMAIL', False)
 
@@ -396,24 +429,23 @@ class EmailService:
                    from_email: Optional[str] = None,
                    from_name: Optional[str] = None,
                    **kwargs) -> EmailResult:
-        """
-        Envia um email.
+        """Envia um email.
 
         Args:
-            to: Email do destinatário
-            subject: Assunto do email
-            text_body: Corpo em texto plano
-            html_body: Corpo em HTML
-            from_email: Email do remetente (usa padrão se não fornecido)
-            from_name: Nome do remetente
-            **kwargs: Argumentos adicionais para EmailMessage
+            to (str): Email do destinatário.
+            subject (str): Assunto do email.
+            text_body (typing.Optional[str]): Corpo em texto plano. Se None, apenas html_body é usado.
+            html_body (typing.Optional[str]): Corpo em HTML. Se None, apenas text_body é usado.
+            from_email (typing.Optional[str]): Email do remetente. Se None, usa padrão configurado.
+            from_name (typing.Optional[str]): Nome do remetente. Se None, usa padrão configurado.
+            **kwargs: Argumentos adicionais para EmailMessage.
 
         Returns:
-            EmailResult: Resultado do envio
+            EmailResult: Resultado do envio.
 
         Raises:
-            EmailProviderError: Em caso de erro no envio
-            ValueError: Para dados inválidos
+            EmailProviderError: Em caso de erro no envio.
+            ValueError: Para dados inválidos.
         """
         try:
             # Usa valores padrão se não fornecidos
@@ -450,8 +482,11 @@ class EmailService:
             raise
 
     def get_provider_info(self) -> Dict[str, Any]:
-        """Retorna informações sobre o provedor atual."""
+        """Retorna informações sobre o provedor atual.
 
+        Returns:
+            typing.Dict[str, typing.Any]: Informações sobre o provedor.
+        """
         return {
             'provider_name'    : self.provider.get_provider_name(),
             'default_from'     : self.default_from_email,

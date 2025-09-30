@@ -12,15 +12,14 @@ from moviedb import db
 
 
 class BasicRepositoryMixin:
-    """
-    Mixin básico para repositórios SQLAlchemy, fornecendo métodos utilitários
-    para operações comuns de consulta.
+    """Mixin básico para repositórios SQLAlchemy.
+
+    Fornece métodos utilitários para operações comuns de consulta.
     """
 
     @classmethod
     def count_all(cls) -> int:
-        """
-        Conta todos os registros na tabela associada à classe.
+        """Conta todos os registros na tabela associada à classe.
 
         Returns:
             int: Número total de registros.
@@ -30,8 +29,7 @@ class BasicRepositoryMixin:
 
     @classmethod
     def is_empty(cls) -> bool:
-        """
-        Verifica se a tabela associada à classe está vazia.
+        """Verifica se a tabela associada à classe está vazia.
 
         Returns:
             bool: True se não houver registros, False caso contrário.
@@ -40,14 +38,13 @@ class BasicRepositoryMixin:
 
     @classmethod
     def get_by_id(cls, cls_id) -> Optional[Self]:
-        """
-        Busca um registro pelo seu ID.
+        """Busca um registro pelo seu ID.
 
         Args:
             cls_id: O identificador do registro (UUID ou outro tipo).
 
         Returns:
-            Optional[Self]: Instância encontrada ou None.
+            typing.Optional[typing.Self]: Instância encontrada ou None.
         """
         try:
             obj_id = uuid.UUID(str(cls_id)) if cls_id is not None else None
@@ -62,15 +59,14 @@ class BasicRepositoryMixin:
     def get_top_n(cls,
                   top_n: int = -1,
                   order_by: Optional[str] = None) -> ScalarResult[Self]:
-        """
-        Retorna os top N registros, opcionalmente ordenados por um atributo.
+        """Retorna os top N registros, opcionalmente ordenados por um atributo.
 
         Args:
             top_n (int): Número de registros a retornar. Se -1, retorna todos.
-            order_by (Optional[str]): Nome do atributo para ordenação.
+            order_by (typing.Optional[str]): Nome do atributo para ordenação.
 
         Returns:
-            Result: Iterável de instâncias.
+            sqlalchemy.ScalarResult[typing.Self]: Iterável de instâncias.
         """
         sentenca = sa.select(cls)
         if order_by is not None and hasattr(cls, order_by):
@@ -82,14 +78,13 @@ class BasicRepositoryMixin:
     @classmethod
     def get_all(cls,
                 order_by: Optional[str] = None) -> ScalarResult[Self]:
-        """
-        Retorna todos os registros, opcionalmente ordenados por um atributo.
+        """Retorna todos os registros, opcionalmente ordenados por um atributo.
 
         Args:
-            order_by (Optional[str]): Nome do atributo para ordenação.
+            order_by (typing.Optional[str]): Nome do atributo para ordenação.
 
         Returns:
-            Result: Iterável de instâncias.
+            sqlalchemy.ScalarResult[typing.Self]: Iterável de instâncias.
         """
         sentenca = sa.select(cls)
         if order_by is not None and hasattr(cls, order_by):
@@ -100,15 +95,15 @@ class BasicRepositoryMixin:
     def get_all_by(cls,
                    criteria: Dict[str, Any] = None,
                    order_by: Optional[str] = None) -> ScalarResult[Self]:
-        """
-        Retorna todos os registros, opcionalmente ordenados por um atributo.
+        """Retorna todos os registros filtrados, opcionalmente ordenados por um atributo.
 
         Args:
-            criteria (Dict[str, Any]): Dicionário com critérios de filtro (atributo: valor).
-            order_by (Optional[str]): Nome do atributo para ordenação.
+            criteria (typing.Dict[str, typing.Any]): Dicionário com critérios de filtro
+                (atributo: valor).
+            order_by (typing.Optional[str]): Nome do atributo para ordenação.
 
         Returns:
-            Result: Iterável de instâncias.
+            sqlalchemy.ScalarResult[typing.Self]: Iterável de instâncias.
         """
         sentenca = sa.select(cls)
         if criteria is not None:
@@ -125,14 +120,13 @@ class BasicRepositoryMixin:
     @classmethod
     def get_by_composed_id(cls,
                            cls_dict_id: Dict[str, Any]) -> Optional[Self]:
-        """
-        Busca um registro por um ID composto.
+        """Busca um registro por um ID composto.
 
         Args:
-            cls_dict_id (Dict[str, Any]): Dicionário com os campos do ID composto.
+            cls_dict_id (typing.Dict[str, typing.Any]): Dicionário com os campos do ID composto.
 
         Returns:
-            Optional[Self]: Instância encontrada ou None.
+            typing.Optional[typing.Self]: Instância encontrada ou None.
         """
         for k, v in cls_dict_id.items():
             try:
@@ -146,16 +140,15 @@ class BasicRepositoryMixin:
                              atributo: str,
                              valor: Union[str, int, uuid.UUID],
                              casesensitive: bool = True) -> Optional[Self]:
-        """
-        Busca o primeiro registro que corresponde ao valor de um atributo.
+        """Busca o primeiro registro que corresponde ao valor de um atributo.
 
         Args:
             atributo (str): Nome do atributo para busca.
-            valor (Union[str, int, uuid.UUID]): Valor a ser buscado.
+            valor (typing.Union[str, int, uuid.UUID]): Valor a ser buscado.
             casesensitive (bool): Se a busca deve ser case sensitive.
 
         Returns:
-            Optional[Self]: Instância encontrada ou None.
+            typing.Optional[typing.Self]: Instância encontrada ou None.
 
         Raises:
             TypeError: Se a busca for case insensitive e o valor não for str.
@@ -182,16 +175,15 @@ class BasicRepositoryMixin:
                  page: int = 1,
                  page_size: int = 10,
                  order_by: Optional[str] = None) -> ScalarResult[Self]:
-        """
-        Retorna uma página de registros, com paginação e ordenação opcional.
+        """Retorna uma página de registros, com paginação e ordenação opcional.
 
         Args:
             page (int): Número da página (começa em 1).
             page_size (int): Número de registros por página (default: 10).
-            order_by (Optional[str]): Nome do atributo para ordenação.
+            order_by (typing.Optional[str]): Nome do atributo para ordenação.
 
         Returns:
-            Optional[list[Self]]: Lista de instâncias na página.
+            sqlalchemy.ScalarResult[typing.Self]: Iterável de instâncias na página.
         """
         page = max(1, min(page, 10000))
         page_size = max(1, min(page_size, 1000))
@@ -204,8 +196,9 @@ class BasicRepositoryMixin:
 
 
 class AuditMixin:
-    """
-    Mixin para adicionar campos de auditoria (criação e atualização) a modelos SQLAlchemy.
+    """Mixin para adicionar campos de auditoria a modelos SQLAlchemy.
+
+    Adiciona campos de criação e atualização automaticamente gerenciados.
     """
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
                                                  server_default=func.now())

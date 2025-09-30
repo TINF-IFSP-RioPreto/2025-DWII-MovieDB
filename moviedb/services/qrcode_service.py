@@ -21,7 +21,6 @@ class QRCodeConfig:
 
 class QRCodeGenerator(ABC):
     """Interface para geração de QR Codes."""
-
     @abstractmethod
     def generate(self, data: str, config: QRCodeConfig) -> bytes:
         """Gera um QR Code a partir dos dados fornecidos.
@@ -31,7 +30,7 @@ class QRCodeGenerator(ABC):
             config (QRCodeConfig): Configuração para geração do QR Code.
 
         Returns:
-            str: Imagem do QR Code em formato PNG codificada em base64.
+            bytes: Imagem do QR Code em formato PNG.
 
         Raises:
             QRCodeError: Em caso de falha na geração do QR Code.
@@ -50,7 +49,6 @@ class QRCodeGenerator(ABC):
 
 class QRCodePILGenerator(QRCodeGenerator):
     """Implementação do gerador de QR Codes usando a biblioteca qrcode e PIL."""
-
     def generate(self, data: str, config: QRCodeConfig) -> bytes:
         from qrcode.main import QRCode
         from qrcode.image.pil import PilImage
@@ -81,7 +79,11 @@ class QRCodeService:
 
     @classmethod
     def create_default(cls) -> 'QRCodeService':
-        """Cria uma instância do serviço com o gerador padrão."""
+        """Cria uma instância do serviço com o gerador padrão.
+
+        Returns:
+            QRCodeService: Instância do serviço com QRCodePILGenerator.
+        """
         return cls(generator=QRCodePILGenerator())
 
     def generate_qr_code(self,
@@ -91,7 +93,8 @@ class QRCodeService:
 
         Args:
             data (str): Dados a serem codificados no QR Code.
-            config (QRCodeConfig): Configuração para geração do QR Code.
+            config (typing.Optional[QRCodeConfig]): Configuração para geração do QR Code.
+                Se None, usa configuração padrão.
 
         Returns:
             bytes: Imagem do QR Code em formato PNG.
@@ -112,7 +115,8 @@ class QRCodeService:
 
         Args:
             data (str): Dados a serem codificados no QR Code.
-            config (QRCodeConfig): Configuração para geração do QR Code.
+            config (typing.Optional[QRCodeConfig]): Configuração para geração do QR Code.
+                Se None, usa configuração padrão.
 
         Returns:
             str: Imagem do QR Code como string base64.
@@ -134,7 +138,8 @@ class QRCodeService:
             secret (str): Segredo TOTP em base32.
             user (str): Nome do usuário ou email.
             issuer (str): Nome do serviço ou aplicação.
-            config (QRCodeConfig): Configuração para geração do QR Code.
+            config (typing.Optional[QRCodeConfig]): Configuração para geração do QR Code.
+                Se None, usa configuração padrão.
 
         Returns:
             bytes: Imagem do QR Code em bytes PNG.
@@ -164,10 +169,11 @@ class QRCodeService:
             secret (str): Segredo TOTP em base32.
             user (str): Nome do usuário ou email.
             issuer (str): Nome do serviço ou aplicação.
-            config (QRCodeConfig): Configuração para geração do QR Code.
+            config (typing.Optional[QRCodeConfig]): Configuração para geração do QR Code.
+                Se None, usa configuração padrão.
 
         Returns:
-            str: string base64 da imagem do QR Code em bytes PNG.
+            str: String base64 da imagem do QR Code em bytes PNG.
 
         Raises:
             ValueError: Em caso de parâmetros inválidos.

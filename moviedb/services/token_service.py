@@ -7,14 +7,13 @@ from flask import current_app
 
 
 class JWT_action(Enum):
-    """
-    Enumeração que define as ações possíveis para tokens JWT.
+    """Enumeração que define as ações possíveis para tokens JWT.
 
     Attributes:
-       NO_ACTION: Nenhuma ação específica indicada
-       VALIDAR_EMAIL: Token usado para validação de email
-       RESET_PASSWORD: Token usado para reset de senha
-       PENDING_2FA: Token usado para indicar pendência de autenticação de dois fatores
+        NO_ACTION: Nenhuma ação específica indicada.
+        VALIDAR_EMAIL: Token usado para validação de email.
+        RESET_PASSWORD: Token usado para reset de senha.
+        PENDING_2FA: Token usado para indicar pendência de autenticação de dois fatores.
     """
     NO_ACTION = 0
     VALIDAR_EMAIL = 1
@@ -24,31 +23,33 @@ class JWT_action(Enum):
 
 
 class JWTService:
-    """ Serviço para criação e validação de tokens JWT."""
+    """Serviço para criação e validação de tokens JWT.
+    """
 
     @staticmethod
     def create(action: JWT_action = JWT_action.NO_ACTION,
                sub: Any = None,
                expires_in: int = 600,
                extra_data: Optional[Dict[Any, Any]] = None) -> str:
-        """
-        Cria um token JWT com os parâmetros fornecidos.
+        """Cria um token JWT com os parâmetros fornecidos.
 
         Args:
-            action: A ação para a qual o token está sendo usado (opcional).
-            sub: O assunto do token (por exemplo, email do usuário).
-            expires_in: O tempo de expiração do token em segundos. Se for negativo, o token não
-            expira. Default de 10min
-            extra_data: Dicionário com dados adicionais para incluir no payload (opcional).
+            action (JWT_action): A ação para a qual o token está sendo usado. Se None,
+            usa NO_ACTION.
+            sub (typing.Any): O assunto do token (por exemplo, email do usuário). Se None,
+            será validado antes do uso.
+            expires_in (int): O tempo de expiração do token em segundos. Se for negativo,
+            o token não expira. Default de 10 minutos.
+            extra_data (typing.Optional[typing.Dict[typing.Any, typing.Any]]): Dicionário com
+            dados adicionais para incluir no payload. Se None, nenhum dado extra é incluído.
 
         Returns:
-            O token JWT codificado com as reivindicações sub, iat, nbf, action e, opcionalmente,
-            exp e extra_data.
+            str: O token JWT codificado com as reivindicações sub, iat, nbf, action e,
+            opcionalmente, exp e extra_data.
 
         Raises:
             ValueError: Se o objeto 'sub' não puder ser convertido em string.
         """
-
         if not hasattr(type(sub), '__str__'):  # isinstance(sub, (str, int, float, uuid.UUID)):
             raise ValueError(f"Tipo de objeto 'sub' inválido: {type(sub)}")
 
@@ -69,17 +70,16 @@ class JWTService:
 
     @staticmethod
     def verify(token: str) -> Dict[str, Any]:
-        """
-        Verifica um token JWT e retorna suas reivindicações.
+        """Verifica um token JWT e retorna suas reivindicações.
 
         Args:
-            token: O token JWT a ser verificado.
+            token (str): O token JWT a ser verificado.
 
         Returns:
-            Um dicionário contendo as reivindicações do token.
-            O dicionário sempre conterá uma chave 'valid' (booleano).
-            Se o token for inválido, uma chave 'reason' pode estar presente.
-            Se o token for válido, ele conterá 'sub', 'action', 'age' e 'extra_data' (se presentes).
+            typing.Dict[str, typing.Any]: Um dicionário contendo as reivindicações do token. O
+            dicionário sempre conterá uma chave 'valid' (booleano). Se o token for inválido,
+            uma chave 'reason' pode estar presente. Se o token for válido, ele conterá 'sub',
+            'action', 'age' e 'extra_data' (se presentes).
         """
         claims: Dict[str, Any] = {'valid': False}
 

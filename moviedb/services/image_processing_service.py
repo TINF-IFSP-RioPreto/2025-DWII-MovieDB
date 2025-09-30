@@ -8,7 +8,8 @@ from PIL import Image
 
 
 class ImageProcessingError(Exception):
-    """Exceção customizada para erros de processamento de imagem."""
+    """Exceção customizada para erros de processamento de imagem.
+    """
     pass
 
 
@@ -24,8 +25,8 @@ class ImageProcessingResult:
 
 
 class ImageProcessingService:
-    """Serviço responsável por processamento e manipulação de imagens."""
-
+    """Serviço responsável por processamento e manipulação de imagens.
+    """
     # Formatos suportados
     SUPPORTED_FORMATS = {'JPEG', 'PNG', 'WEBP'}
 
@@ -47,22 +48,20 @@ class ImageProcessingService:
                               max_file_size: Optional[int] = None,
                               max_dimensions: Optional[
                                   Tuple[int, int]] = None) -> ImageProcessingResult:
-        """
-        Processa um arquivo de imagem enviado via upload, gerando foto original e avatar.
+        """Processa um arquivo de imagem enviado via upload, gerando foto original e avatar.
 
         Args:
-            arquivo_upload: Objeto de arquivo (FileStorage do Flask)
-            avatar_size: Tamanho do avatar em pixels (padrão: configuração da app ou 32)
-            max_file_size: Tamanho máximo do arquivo em bytes (padrão: configuração da app ou 5MiB)
-            max_dimensions: Dimensões máximas permitidas (largura, altura) (padrão: configuração
-            da app ou (2048, 2048))
+            arquivo_upload (FileStorage): Objeto de arquivo (FileStorage do Flask).
+            avatar_size (typing.Optional[int]): Tamanho do avatar em pixels. Se None, usa configuração da app ou 32.
+            max_file_size (typing.Optional[int]): Tamanho máximo do arquivo em bytes. Se None, usa configuração da app ou 5MiB.
+            max_dimensions (typing.Optional[typing.Tuple[int, int]]): Dimensões máximas permitidas (largura, altura). Se None, usa configuração da app ou (2048, 2048).
 
         Returns:
-            ImageProcessingResult: Resultado do processamento da imagem
+            ImageProcessingResult: Resultado do processamento da imagem.
 
         Raises:
-            ImageProcessingError: Em caso de erro no processamento
-            ValueError: Para arquivos inválidos ou muito grandes
+            ImageProcessingError: Em caso de erro no processamento.
+            ValueError: Para arquivos inválidos ou muito grandes.
         """
         if arquivo_upload is None:
             raise ValueError("Nenhum arquivo fornecido")
@@ -105,17 +104,16 @@ class ImageProcessingService:
                                 mime_type: str,
                                 avatar_size: int,
                                 max_dimensions: Tuple[int, int]) -> ImageProcessingResult:
-        """
-        Processa dados de imagem em bytes.
+        """Processa dados de imagem em bytes.
 
         Args:
-            foto_data: Dados da imagem em bytes
-            mime_type: Tipo MIME fornecido pelo upload
-            avatar_size: Tamanho do avatar
-            max_dimensions: Dimensões máximas
+            foto_data (bytes): Dados da imagem em bytes.
+            mime_type (str): Tipo MIME fornecido pelo upload.
+            avatar_size (int): Tamanho do avatar.
+            max_dimensions (typing.Tuple[int, int]): Dimensões máximas.
 
         Returns:
-            dict: Resultado do processamento
+            ImageProcessingResult: Resultado do processamento.
         """
         try:
             with Image.open(io.BytesIO(foto_data)) as imagem:
@@ -158,14 +156,13 @@ class ImageProcessingService:
 
     @staticmethod
     def _otimizar_imagem_original(imagem: Image.Image) -> bytes:
-        """
-        Otimiza a imagem original mantendo qualidade mas reduzindo tamanho do arquivo.
+        """Otimiza a imagem original mantendo qualidade mas reduzindo tamanho do arquivo.
 
         Args:
-            imagem: Objeto PIL Image
+            imagem (PIL.Image.Image): Objeto PIL Image.
 
         Returns:
-            bytes: Dados da imagem otimizada
+            bytes: Dados da imagem otimizada.
         """
         buffer = io.BytesIO()
         formato = imagem.format
@@ -189,15 +186,14 @@ class ImageProcessingService:
 
     @staticmethod
     def _gerar_avatar(imagem: Image.Image, avatar_size: int) -> Tuple[bytes, Tuple[int, int]]:
-        """
-        Gera avatar redimensionado a partir da imagem.
+        """Gera avatar redimensionado a partir da imagem.
 
         Args:
-            imagem: Objeto PIL Image
-            avatar_size: Tamanho desejado do avatar
+            imagem (PIL.Image.Image): Objeto PIL Image.
+            avatar_size (int): Tamanho desejado do avatar.
 
         Returns:
-            tuple: (dados_avatar, dimensoes_finais)
+            typing.Tuple[bytes, typing.Tuple[int, int]]: Tupla contendo (dados_avatar, dimensoes_finais).
         """
         largura, altura = imagem.size
         formato_original = imagem.format

@@ -23,16 +23,15 @@ auth_bp = Blueprint(name='auth',
 @auth_bp.route('/register', methods=['GET', 'POST'])
 @anonymous_required
 def register():
-    """
-    Exibe o formulário de registro de usuário e processa o cadastro.
+    """Exibe o formulário de registro de usuário e processa o cadastro.
 
-    - Usuários já autenticados não podem acessar esta rota.
-    - Se o formulário for enviado e validado, delega o registro ao UserService.
-    - O usuário deve confirmar o email antes de conseguir logar.
-    - Caso contrário, renderiza o template de registro.
+    Usuários já autenticados não podem acessar esta rota. Se o formulário for
+    enviado e validado, delega o registro ao UserService. O usuário deve confirmar
+    o email antes de conseguir logar. Caso contrário, renderiza o template de registro.
 
     Returns:
-        Response: Redireciona ou renderiza o template de registro.
+        flask.Response: Redireciona para a página inicial ou renderiza o template
+            de registro.
     """
     email_service = current_app.extensions.get('email_service')
     if not email_service:
@@ -64,18 +63,17 @@ def register():
 @auth_bp.route('/revalida_email/<uuid:user_id>')
 @anonymous_required
 def revalida_email(user_id):
-    """
-    Reenvia o email de validação para o usuário com o ID fornecido.
+    """Reenvia o email de validação para o usuário com o ID fornecido.
 
-    - Usuários autenticados não podem acessar esta rota.
-    - Delega ao UserService a revalidação e envio de email.
-    - Exibe mensagens de sucesso ou erro conforme o caso.
+    Usuários autenticados não podem acessar esta rota. Delega ao UserService
+    a revalidação e envio de email. Exibe mensagens de sucesso ou erro conforme o caso.
 
     Args:
-        user_id (UUID): Identificador único do usuário.
+        user_id (uuid.UUID): Identificador único do usuário.
 
     Returns:
-        Response: Redireciona para a página de login.
+        flask.Response: Redireciona para a página de login ou página inicial conforme
+            o resultado da operação.
     """
     email_service = current_app.extensions.get('email_service')
     if not email_service:
@@ -107,20 +105,19 @@ def revalida_email(user_id):
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @anonymous_required
 def login():
-    """
-    Exibe o formulário de login e processa a autenticação do usuário.
+    """Exibe o formulário de login e processa a autenticação do usuário.
 
-    - Usuários já autenticados não podem acessar esta rota.
-    - Se o formulário for enviado e validado, verifica as credenciais do usuário.
-    - Se o usuário existir, estiver ativo e a senha estiver correta, ou encaminha
-      para a página de 2FA, ou realiza o login conforme o caso.
-    - Se efetuar o login sem 2FA, redireciona para a página desejada ou para a página inicial.
-    - Caso contrário, exibe mensagens de erro e permanece na página de login.
+    Usuários já autenticados não podem acessar esta rota. Se o formulário for
+    enviado e validado, verifica as credenciais do usuário. Se o usuário existir,
+    estiver ativo e a senha estiver correta, ou encaminha para a página de 2FA,
+    ou realiza o login conforme o caso. Se efetuar o login sem 2FA, redireciona
+    para a página desejada ou para a página inicial. Caso contrário, exibe mensagens
+    de erro e permanece na página de login.
 
     Returns:
-        Response: Redireciona ou renderiza o template de login.
+        flask.Response: Redireciona para a página de 2FA, página desejada, página
+            inicial ou renderiza o template de login.
     """
-
     form = LoginForm()
 
     if form.validate_on_submit():
@@ -169,20 +166,18 @@ def login():
 @auth_bp.route('/get2fa', methods=['GET', 'POST'])
 @anonymous_required
 def get2fa():
-    """
-    Exibe e processa o formulário de segundo fator de autenticação (2FA).
+    """Exibe e processa o formulário de segundo fator de autenticação (2FA).
 
-    - Usuários já autenticados não podem acessar esta rota.
-    - Verifica se a sessão contém informações de usuário pendente de 2FA.
-    - Implementa expiração da sessão de 2FA baseada em tempo (opcional).
-    - Valida o código 2FA informado pelo usuário (TOTP ou código reserva).
-    - Finaliza o login se o código estiver correto, ou exibe mensagem de erro.
-    - Limpa variáveis de sessão após sucesso ou falha.
+    Usuários já autenticados não podem acessar esta rota. Verifica se a sessão
+    contém informações de usuário pendente de 2FA. Implementa expiração da sessão
+    de 2FA baseada em tempo (opcional). Valida o código 2FA informado pelo usuário
+    (TOTP ou código reserva). Finaliza o login se o código estiver correto, ou
+    exibe mensagem de erro. Limpa variáveis de sessão após sucesso ou falha.
 
     Returns:
-        Response: Redireciona para a página desejada após login ou renderiza o formulário de 2FA.
+        flask.Response: Redireciona para a página de login, página desejada após
+            login ou renderiza o formulário de 2FA.
     """
-
     # CRITICO: Verifica se a variável de sessão que indica que a senha foi validada
     #  está presente. Se não estiver, redireciona para a página de login.
     pending_2fa_token = session.get('pending_2fa_token')
@@ -253,15 +248,13 @@ def get2fa():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    """
-    Realiza o logout do usuário autenticado.
+    """Realiza o logout do usuário autenticado.
 
-    - Encerra a sessão do usuário.
-    - Exibe uma mensagem de sucesso.
-    - Redireciona para a página inicial.
+    Encerra a sessão do usuário, exibe uma mensagem de sucesso e redireciona
+    para a página inicial.
 
     Returns:
-        Response: Redireciona para a página inicial após logout.
+        flask.Response: Redireciona para a página inicial após logout.
     """
     UserService.efetuar_logout(current_user)
     flash("Logout efetuado com sucesso!", category='success')
@@ -271,18 +264,17 @@ def logout():
 @auth_bp.route('/valida_email/<token>')
 @anonymous_required
 def valida_email(token):
-    """
-    Valida o email do usuário a partir de um token JWT enviado na URL.
+    """Valida o email do usuário a partir de um token JWT enviado na URL.
 
-    - Usuários autenticados não podem acessar esta rota.
-    - Delega ao UserService a validação do token e ativação do usuário.
-    - Exibe mensagens de sucesso ou erro conforme o caso.
+    Usuários autenticados não podem acessar esta rota. Delega ao UserService
+    a validação do token e ativação do usuário. Exibe mensagens de sucesso ou
+    erro conforme o caso.
 
     Args:
         token (str): Token JWT enviado na URL para validação do email.
 
     Returns:
-        Response: Redireciona para a página de login ou inicial, conforme o caso.
+        flask.Response: Redireciona para a página de login ou inicial, conforme o caso.
     """
     resultado = UserService.validar_email_por_token(token)
 
@@ -300,18 +292,18 @@ def valida_email(token):
 @auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 @anonymous_required
 def reset_password(token):
-    """
-    Exibe o formulário para redefinição de senha e processa a troca de senha do usuário.
+    """Exibe o formulário para redefinição de senha e processa a troca de senha.
 
-    - Usuários autenticados não podem acessar esta rota.
-    - Delega ao UserService a validação do token e redefinição da senha.
-    - Em caso de token inválido ou usuário inexistente, exibe mensagem de erro.
+    Usuários autenticados não podem acessar esta rota. Delega ao UserService
+    a validação do token e redefinição da senha. Em caso de token inválido ou
+    usuário inexistente, exibe mensagem de erro.
 
     Args:
         token (str): Token JWT enviado na URL para redefinição de senha.
 
     Returns:
-        Response: Redireciona para a página de login ou inicial, conforme o caso.
+        flask.Response: Redireciona para a página de login ou inicial, ou renderiza
+            o formulário de redefinição de senha.
     """
     # Valida o token antes de qualquer operação
     claims = JWTService.verify(token)
@@ -340,16 +332,15 @@ def reset_password(token):
 @auth_bp.route('/new_password', methods=['GET', 'POST'])
 @anonymous_required
 def new_password():
-    """
-    Exibe o formulário para solicitar redefinição de senha.
+    """Exibe o formulário para solicitar redefinição de senha.
 
-    - Usuários autenticados não podem acessar esta rota.
-    - Delega ao UserService a geração de token e envio de email.
-    - Sempre exibe uma mensagem informando que, se houver uma conta, um email será enviado.
-    - Renderiza o formulário caso não seja enviado ou validado.
+    Usuários autenticados não podem acessar esta rota. Delega ao UserService
+    a geração de token e envio de email. Sempre exibe uma mensagem informando
+    que, se houver uma conta, um email será enviado. Renderiza o formulário caso
+    não seja enviado ou validado.
 
     Returns:
-        Response: Redireciona para a página de login ou renderiza o formulário.
+        flask.Response: Redireciona para a página de login ou renderiza o formulário.
     """
     email_service = current_app.extensions.get('email_service')
     if not email_service:
@@ -383,19 +374,19 @@ def new_password():
 @auth_bp.route('/<uuid:id_usuario>/imagem/<size>', methods=['GET'])
 @login_required
 def imagem(id_usuario, size):
-    """
-    Retorna a imagem ou avatar do usuário autenticado, conforme o parâmetro size.
+    """Retorna a imagem ou avatar do usuário autenticado conforme o parâmetro size.
 
-    - Apenas o próprio usuário pode acessar sua imagem.
-    - Retorna 404 se o usuário não for o dono, não existir ou não possuir foto.
-    - Utiliza o tipo MIME correto para a resposta.
+    Apenas o próprio usuário pode acessar sua imagem. Retorna 404 se o usuário
+    não for o dono, não existir ou não possuir foto. Utiliza o tipo MIME correto
+    para a resposta.
 
     Args:
-        id_usuario (UUID): Identificador único do usuário.
+        id_usuario (uuid.UUID): Identificador único do usuário.
         size (str): 'full' para foto completa, 'avatar' para avatar.
 
     Returns:
-        Response: Imagem do usuário ou status 404 se não encontrada.
+        flask.Response: Imagem do usuário com mimetype correto ou status 404 se
+            não encontrada.
     """
     if str(current_user.id) != str(id_usuario):
         return Response(status=404)
@@ -415,19 +406,17 @@ def imagem(id_usuario, size):
 @auth_bp.route('/profile', methods=['GET', 'POST'])
 @fresh_login_required
 def profile():
-    """
-    Exibe e processa o formulário de edição do perfil do usuário autenticado.
+    """Exibe e processa o formulário de edição do perfil do usuário autenticado.
 
-    - Permite ao usuário alterar nome, email e foto.
-    - Apenas o próprio usuário pode acessar e modificar seus dados.
-    - Remove o botão de remover foto se o usuário não possui foto.
-    - Valida e processa o envio de nova foto ou remoção da existente.
-    - Ativa ou desativa o 2FA conforme a escolha do usuário.
-    - Salva alterações no banco de dados e exibe mensagens de sucesso ou erro.
+    Permite ao usuário alterar nome, email e foto. Apenas o próprio usuário pode
+    acessar e modificar seus dados. Remove o botão de remover foto se o usuário
+    não possui foto. Valida e processa o envio de nova foto ou remoção da existente.
+    Ativa ou desativa o 2FA conforme a escolha do usuário. Salva alterações no
+    banco de dados e exibe mensagens de sucesso ou erro.
 
     Returns:
-        Response: Redireciona para a página inicial após alterações ou
-        renderiza o formulário de perfil.
+        flask.Response: Redireciona para a página inicial, página de ativação do
+            2FA após alterações ou renderiza o formulário de perfil.
     """
     form = ProfileForm()
     # TODO: quando submete uma foto, ao recarregar o formulário ele não acrescenta o botão de
@@ -491,18 +480,18 @@ def profile():
 @auth_bp.route('enable_2fa', methods=['GET', 'POST'])
 @login_required
 def enable_2fa():
-    """
-    Ativa o segundo fator de autenticação (2FA) para o usuário autenticado.
+    """Ativa o segundo fator de autenticação (2FA) para o usuário autenticado.
 
-    - Se o usuário já possui 2FA ativado, exibe mensagem informativa e redireciona para o perfil.
-    - Valida o token de ativação da sessão.
-    - Exibe o formulário para digitar o código TOTP gerado pelo autenticador.
-    - Se o código for válido, ativa o 2FA, gera códigos de backup e exibe-os ao usuário.
-    - Se o código for inválido, exibe mensagem de erro e redireciona para a página de ativação.
-    - Renderiza o formulário de ativação do 2FA caso não seja enviado ou validado.
+    Se o usuário já possui 2FA ativado, exibe mensagem informativa e redireciona
+    para o perfil. Valida o token de ativação da sessão. Exibe o formulário para
+    digitar o código TOTP gerado pelo autenticador. Se o código for válido, ativa
+    o 2FA, gera códigos de backup e exibe-os ao usuário. Se o código for inválido,
+    exibe mensagem de erro e redireciona para a página de ativação. Renderiza o
+    formulário de ativação do 2FA caso não seja enviado ou validado.
 
     Returns:
-        Response: Renderiza o formulário de ativação do 2FA ou exibe os códigos de backup.
+        flask.Response: Redireciona para o perfil, página de ativação do 2FA,
+            renderiza o formulário de ativação do 2FA ou exibe os códigos de backup.
     """
     if current_user.usa_2fa:
         flash("Configuração já efetuada. Para alterar, desative e reative o uso do "

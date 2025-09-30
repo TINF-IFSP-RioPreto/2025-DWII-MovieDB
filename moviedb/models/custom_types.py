@@ -11,13 +11,10 @@ from sqlalchemy import String, TypeDecorator
 
 
 class EncryptedType(TypeDecorator):
-    """
-    Tipo personalizado do SQLAlchemy para criptografia automática de dados.
+    """Tipo personalizado do SQLAlchemy para criptografia automática de dados.
 
-    Este tipo automaticamente:
-    - Criptografa dados durante a escrita no banco
-    - Descriptografa dados durante a leitura do banco
-    - Mantém compatibilidade com valores None/NULL
+    Este tipo automaticamente: a) criptografa dados durante a escrita no banco; b) descriptografa
+    dados durante a leitura do banco, e; c) mantém compatibilidade com valores None/NULL.
     """
 
     impl = String
@@ -28,24 +25,30 @@ class EncryptedType(TypeDecorator):
     _cache_lock = RLock()
 
     def __init__(self, encryption_key: str = None, salt_key: str = None, *args, **kwargs):
-        """
-        Inicializa o tipo criptografado com configuração lazy.
+        """Inicializa o tipo criptografado com configuração lazy.
 
         Args:
-            encryption_key: Chave de criptografia no current_app.config
-            salt_key: Valor do salt no current_app.config
+            encryption_key (Optional[str]): Chave de criptografia no current_app.config.
+            salt_key (Optional[str]): Valor do salt no current_app.config.
+            *args: Argumentos adicionais posicionais.
+            **kwargs: Argumentos adicionais nomeados.
         """
+        # @formatter:on
         super().__init__(*args, **kwargs)
 
         self.encryption_key = encryption_key or "ENCRYPTION_KEY"
         self.salt_key = salt_key or "ENCRYPTION_SALT"
 
     def _get_encryption_key_and_salt(self) -> tuple[str, Union[bytes, str]]:
-        """
-        Recupera a chave de criptografia e o salt do current_app.config.
+        """Recupera a chave de criptografia e o salt do current_app.config.
 
         Returns:
-            Tuple contendo a chave de criptografia e o salt
+            tuple[str, Union[bytes, str]]: Tuple contendo a chave de criptografia e o salt.
+
+        Raises:
+            RuntimeError: Se o contexto da aplicação Flask não está disponível.
+            ValueError: Se as chaves de configuração não estão definidas.
+            TypeError: Se o salt não é str ou bytes.
         """
         if not current_app:
             raise RuntimeError("O contexto da aplicação Flask não está disponível.")
@@ -82,11 +85,10 @@ class EncryptedType(TypeDecorator):
         return encryption_key, salt_bytes
 
     def _get_fernet(self) -> Fernet:
-        """
-        Obtém instância Fernet com cache thread-safe.
+        """Obtém instância Fernet com cache thread-safe.
 
         Returns:
-            Instância Fernet configurada
+            Fernet: Instância Fernet configurada.
         """
         # Criar chave de cache baseada na configuração
         encryption_key, salt_bytes = self._get_encryption_key_and_salt()
@@ -106,7 +108,18 @@ class EncryptedType(TypeDecorator):
             return self._fernet_cache[cache_key]
 
     def process_bind_param(self, value: Any, dialect) -> Optional[str]:
-        """Criptografa valor para armazenamento."""
+        """Criptografa valor para armazenamento.
+
+        Args:
+            value (Any): Valor a ser criptografado.
+            dialect: Dialeto do SQLAlchemy.
+
+        Returns:
+            Optional[str]: Valor criptografado em base64 ou None.
+
+        Raises:
+            TypeError: Se o valor não pode ser convertido para string.
+        """
         if value is None:
             return None
 
@@ -120,7 +133,18 @@ class EncryptedType(TypeDecorator):
         return base64.urlsafe_b64encode(encrypted_bytes).decode('ascii')
 
     def process_result_value(self, value: Any, dialect) -> Optional[str]:
-        """Descriptografa valor do banco."""
+        """Descriptografa valor do banco.
+
+        Args:
+            value (Any): Valor criptografado do banco de dados.
+            dialect: Dialeto do SQLAlchemy.
+
+        Returns:
+            Optional[str]: Valor descriptografado ou None.
+
+        Raises:
+            ValueError: Se houver erro ao descriptografar dados.
+        """
         if value is None:
             return None
 

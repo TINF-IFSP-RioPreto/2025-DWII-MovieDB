@@ -44,12 +44,23 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @property
     def email(self):
-        """Retorna o e-mail normalizado do usuário."""
+        """Retorna o e-mail normalizado do usuário.
+
+        Returns:
+            str: E-mail normalizado do usuário.
+        """
         return self.email_normalizado
 
     @email.setter
     def email(self, value):
-        """Define e normaliza o e-mail do usuário."""
+        """Define e normaliza o e-mail do usuário.
+
+        Args:
+            value (str): E-mail a ser normalizado e armazenado.
+
+        Raises:
+            ValueError: Se o e-mail fornecido for inválido.
+        """
         try:
             normalizado = EmailValidationService.normalize(value)
         except ValueError:
@@ -58,7 +69,11 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @property
     def is_active(self):
-        """Indica se o usuário está ativo."""
+        """Indica se o usuário está ativo.
+
+        Returns:
+            bool: True se o usuário está ativo, False caso contrário.
+        """
         return self.ativo
 
     def get_id(self):  # https://flask-login.readthedocs.io/en/latest/#alternative-tokens
@@ -66,25 +81,32 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @property
     def password(self):
-        """Retorna o hash da senha do usuário."""
+        """Retorna o hash da senha do usuário.
+
+        Returns:
+            str: Hash da senha do usuário.
+        """
         return self.password_hash
 
     @password.setter
     def password(self, value):
-        """Armazena o has da senha do usuário."""
+        """Armazena o hash da senha do usuário.
+
+        Args:
+            value (str): Senha em texto plano a ser hashada e armazenada.
+        """
         from werkzeug.security import generate_password_hash
         self.password_hash = generate_password_hash(value)
 
     @classmethod
     def get_by_email(cls, email: str) -> Optional['User']:
-        """
-        Retorna o usuário com o e-mail especificado, ou None se não encontrado
+        """Retorna o usuário com o e-mail especificado, ou None se não encontrado.
 
         Args:
-            email (str): email previamente normalizado que será buscado
+            email (str): E-mail previamente normalizado que será buscado.
 
         Returns:
-            O usuário encontrado, ou None
+            typing.Optional[User]: O usuário encontrado, ou None.
         """
         return db.session.scalar(select(cls).where(User.email_normalizado.is_(email)))
 
@@ -94,7 +116,12 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @property
     def foto(self) -> tuple[bytes | None, str | None]:
-        """Retorna a foto original do usuário em bytes e o tipo MIME."""
+        """Retorna a foto original do usuário em bytes e o tipo MIME.
+
+        Returns:
+            tuple[bytes | None, str | None]: Tupla contendo os bytes da foto e o tipo MIME,
+                ou (None, None) se o usuário não possui foto.
+        """
         if self.com_foto:
             data = b64decode(str(self.foto_base64))
             mime_type = self.foto_mime
@@ -105,7 +132,12 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @property
     def avatar(self) -> tuple[bytes | None, str | None]:
-        """Retorna o avatar do usuário em bytes e o tipo MIME."""
+        """Retorna o avatar do usuário em bytes e o tipo MIME.
+
+        Returns:
+            tuple[bytes | None, str | None]: Tupla contendo os bytes do avatar e o tipo MIME,
+                ou (None, None) se o usuário não possui foto.
+        """
         if self.com_foto:
             data = b64decode(str(self.avatar_base64))
             mime_type = self.foto_mime
@@ -116,8 +148,7 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
     @foto.setter
     def foto(self, value):
-        """
-        Setter para a foto/avatar do usuário.
+        """Setter para a foto/avatar do usuário.
 
         Atualiza os campos relacionados à foto do usuário. Se o valor for None,
         remove a foto e limpa os campos associados. Caso contrário, tenta armazenar
@@ -127,11 +158,11 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
         gerenciar a transação (commit/rollback).
 
         Args:
-            value: um objeto com métodos `read()` e atributo `mimetype`, ou None.
+            value: Um objeto com métodos `read()` e atributo `mimetype`, ou None.
 
         Raises:
-            ImageProcessingError: Se houver erro ao processar a imagem
-            ValueError: Se o valor fornecido for inválido
+            ImageProcessingError: Se houver erro ao processar a imagem.
+            ValueError: Se o valor fornecido for inválido.
         """
         if value is None:
             self.com_foto = False

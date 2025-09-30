@@ -6,12 +6,11 @@ from wtforms.validators import ValidationError
 
 class CampoImutavel:
     """
-    Validador WTForms genérico para garantir que um campo não seja modificado pelo usuário no
-    lado do cliente.
+    Validador WTForms genérico para garantir que um campo não seja modificado pelo usuário no lado do cliente.
 
     Usa introspecção para acessar o objeto de referência através do formulário.
 
-    Exemplos de uso:
+    Examples:
         class ProfileForm(FlaskForm):
             def __init__(self, obj=None, **kwargs):
                 super().__init__(**kwargs)
@@ -26,22 +25,27 @@ class CampoImutavel:
                  attr_name: Optional[str] = None,
                  message: Optional[str] = None,
                  converter: Optional[Callable[[Any], Any]] = None) -> None:
+        # @formatter:off
         """
         Inicializa o validador de campos imutáveis genérico.
 
         Args:
             field_name (str): Nome do campo no formulário.
-            attr_name (str, opcional): Nome do atributo no objeto de referência
-                                     (padrão: mesmo que field_name).
-            message (str, opcional): Mensagem de erro personalizada.
-            converter (Callable, opcional): Função para converter o valor de referência.
+            attr_name (Optional[str]): Nome do atributo no objeto de referência (padrão: mesmo que field_name).
+            message (Optional[str]): Mensagem de erro personalizada.
+            converter (Optional[Callable[[Any], Any]]): Função para converter o valor de referência.
+
+        Returns:
+            None
         """
+        # @formatter:on
         self.field_name = field_name
         self.attr_name = attr_name or field_name
         self.converter = converter or (str if field_name == 'id' else lambda x: x)
         self.message = message or f"Tentativa de modificação não autorizada do campo {field_name}"
 
     def __call__(self, form, field) -> None:
+        # @formatter:off
         """
         Executa a validação do campo imutável usando introspecção no formulário.
 
@@ -49,9 +53,13 @@ class CampoImutavel:
             form: O formulário WTForms sendo validado.
             field: O campo a ser verificado.
 
+        Returns:
+            None
+
         Raises:
-            ValidationError: se o valor do campo for diferente do valor esperado.
+            ValidationError: Se o valor do campo for diferente do valor esperado.
         """
+        # @formatter:on
         # Verifica se o formulário tem um objeto de referência
         if not hasattr(form, 'reference_obj'):
             raise ValidationError("Formulário deve ter atributo 'reference_obj'")
@@ -84,7 +92,7 @@ class UniqueEmail(object):
     Validador WTForms para garantir que o email informado não está cadastrado no sistema.
 
     Args:
-        message (str, opcional): Mensagem de erro personalizada.
+        message (Optional[str]): Mensagem de erro personalizada.
     """
 
     def __init__(self, message=None):
@@ -93,6 +101,7 @@ class UniqueEmail(object):
         self.message = message
 
     def __call__(self, form, field):
+        # @formatter:off
         """
         Verifica se um email já está cadastrado.
 
@@ -103,6 +112,7 @@ class UniqueEmail(object):
         Raises:
             ValidationError: Se o email já estiver cadastrado.
         """
+        # @formatter:on
         from moviedb.models.autenticacao import User
         if User.get_by_email(field.data):
             raise ValidationError(self.message)
@@ -110,11 +120,9 @@ class UniqueEmail(object):
 
 class SenhaComplexa(object):
     """
-    Validador WTForms para garantir que a senha informada atende aos requisitos de complexidade
-    definidos.
+    Validador WTForms para garantir que a senha informada atende aos requisitos de complexidade definidos.
 
-    Os requisitos são definidos pelas seguintes chaves inteiras e booleanas no
-    dicionário de configuração da aplicação:
+    Os requisitos são definidos pelas seguintes chaves inteiras e booleanas no dicionário de configuração da aplicação:
 
     - PASSWORD_MIN: 8
     - PASSWORD_MINUSCULA: false
@@ -127,6 +135,7 @@ class SenhaComplexa(object):
         pass
 
     def __call__(self, form, field):
+        # @formatter:off
         """
         Realiza a validação da senha conforme os requisitos definidos.
 
@@ -137,6 +146,7 @@ class SenhaComplexa(object):
         Raises:
             ValidationError: Se a senha não atender aos requisitos de complexidade.
         """
+        # @formatter:on
         from flask import current_app
         import re
         from collections import namedtuple

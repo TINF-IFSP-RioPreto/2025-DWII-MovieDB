@@ -62,12 +62,11 @@ class UserService:
 
     @staticmethod
     def _enviar_email_confirmacao(usuario: User, email_service) -> tuple[str, bool]:
-        """
-        Método auxiliar privado para enviar email de confirmação.
+        """Metodo auxiliar privado para enviar email de confirmação.
 
         Args:
-            usuario: Instância do usuário
-            email_service: Instância do serviço de email
+            usuario (user): Instância do usuário
+            email_service (EmailService): Instância do serviço de email
 
         Returns:
             tuple[str, bool]: (token gerado, sucesso no envio)
@@ -91,11 +90,10 @@ class UserService:
 
     @staticmethod
     def confirmar_email(usuario: User) -> bool:
-        """
-        Confirma o email do usuário, ativando sua conta.
+        """Confirma o email do usuário, ativando sua conta.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             bool: True se a operação foi bem-sucedida
@@ -126,11 +124,10 @@ class UserService:
 
     @staticmethod
     def desconfirmar_email(usuario: User) -> bool:
-        """
-        Desconfirma o email do usuário, desativando sua conta.
+        """Desconfirma o email do usuário, desativando sua conta.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             bool: True se a operação foi bem-sucedida
@@ -162,11 +159,10 @@ class UserService:
 
     @staticmethod
     def pode_logar(usuario: User) -> bool:
-        """
-        Verifica se o usuário está ativo e pode efetuar login.
+        """Verifica se o usuário está ativo e pode efetuar login.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             bool: True se o usuário pode logar, False caso contrário
@@ -178,12 +174,11 @@ class UserService:
 
     @staticmethod
     def efetuar_login(usuario: User, remember_me: bool = False) -> bool:
-        """
-        Efetua o login do usuário no sistema.
+        """Efetua o login do usuário no sistema utlizando Flask-Login.
 
         Args:
-            usuario: Instância do usuário
-            remember_me: Se True, mantém o usuário logado por mais tempo
+            usuario (User): Instância do usuário
+            remember_me (bool): Se True, mantém o usuário logado por mais tempo
 
         Returns:
             bool: True se o login foi bem-sucedido
@@ -218,13 +213,12 @@ class UserService:
     @staticmethod
     def set_pending_2fa_token_data(usuario: User, remember_me: bool = False,
                                    next_page: str = None) -> str:
-        """
-        Cria um token para iniciar o fluxo de autenticação de dois fatores (2FA).
+        """Cria um token para iniciar o fluxo de autenticação de dois fatores (2FA).
 
         Args:
-            usuario: Instância do usuário
-            remember_me: Se True, mantém o usuário logado por mais tempo
-            next_page: Página para redirecionamento após 2FA
+            usuario (User): Instância do usuário
+            remember_me (bool): Se True, mantém o usuário logado por mais tempo. Default: False
+            next_page (str): Página para redirecionamento após 2FA. Default: None
 
         Returns:
             str: Token gerado para 2FA
@@ -239,11 +233,10 @@ class UserService:
 
     @staticmethod
     def get_pending_2fa_token_data(token: str) -> dict:
-        """
-        Decodifica o token de 2FA e retorna os dados contidos nele.
+        """Decodifica o token de ativação do 2FA e retorna os dados contidos nele.
 
         Args:
-            token: Token JWT de 2FA
+            token (str): Token JWT de 2FA
 
         Returns:
             dict: Dados extraídos do token
@@ -258,11 +251,10 @@ class UserService:
 
     @staticmethod
     def efetuar_logout(usuario: User) -> bool:
-        """
-        Efetua o logout do usuário do sistema.
+        """Efetua o logout do usuário do sistema utilizando Flask-Login.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             bool: True se o logout foi bem-sucedido
@@ -280,11 +272,10 @@ class UserService:
 
     @staticmethod
     def e_primeira_sessao(usuario: User) -> bool:
-        """
-        Verifica se esta é a primeira vez que o usuário faz login.
+        """Verifica se esta é a primeira vez que o usuário faz login.
 
         Args:
-            usuario: Instância do usuário
+            usuario (User): Instância do usuário
 
         Returns:
             bool: True se é o primeiro login
@@ -294,14 +285,13 @@ class UserService:
     @staticmethod
     def registrar_usuario(nome: str, email: str, password: str,
                           email_service) -> UserRegistrationResult:
-        """
-        Registra um novo usuário no sistema e envia email de confirmação.
+        """Registra um novo usuário no sistema e envia email de confirmação.
 
         Args:
-            nome: Nome completo do usuário
-            email: Email do usuário (será normalizado)
-            password: Senha em texto plano (será hasheada)
-            email_service: Instância do serviço de email
+            nome (str): Nome completo do usuário
+            email (str): Email do usuário (será normalizado)
+            password (str): Senha em texto plano (será hasheada)
+            email_service (EmailService): Instância do serviço de email
 
         Returns:
             UserRegistrationResult: Resultado da operação com usuário e token
@@ -348,12 +338,11 @@ class UserService:
 
     @staticmethod
     def reenviar_email_validacao(user_id: UUID, email_service) -> EmailValidationResult:
-        """
-        Reenvia o email de validação para um usuário inativo.
+        """Reenvia o email de validação para um usuário inativo.
 
         Args:
-            user_id: UUID do usuário
-            email_service: Instância do serviço de email
+            user_id (uuid.UUID): UUID do usuário
+            email_service (EmailService): Instância do serviço de email
 
         Returns:
             EmailValidationResult: Resultado da operação
@@ -406,11 +395,10 @@ class UserService:
 
     @staticmethod
     def validar_email_por_token(token: str) -> EmailValidationResult:
-        """
-        Valida o email de um usuário através de um token JWT.
+        """Valida o email de um usuário através de um token JWT.
 
         Args:
-            token: Token JWT de validação de email
+            token (str): Token JWT de validação de email
 
         Returns:
             EmailValidationResult: Resultado da validação
@@ -458,12 +446,11 @@ class UserService:
 
     @staticmethod
     def solicitar_reset_senha(email: str, email_service) -> PasswordResetResult:
-        """
-        Solicita reset de senha, gerando token e enviando email.
+        """Solicita reset de senha, gerando token e enviando email.
 
         Args:
-            email: Email do usuário (será normalizado)
-            email_service: Instância do serviço de email
+            email (str): Email do usuário (será normalizado)
+            email_service (EmailService): Instância do serviço de email
 
         Returns:
             PasswordResetResult: Resultado da operação
@@ -507,12 +494,11 @@ class UserService:
 
     @staticmethod
     def redefinir_senha_por_token(token: str, nova_senha: str) -> PasswordResetResult:
-        """
-        Redefine a senha de um usuário através de um token JWT.
+        """Redefine a senha de um usuário através de um token JWT.
 
         Args:
-            token: Token JWT de reset de senha
-            nova_senha: Nova senha em texto plano
+            token (str): Token JWT de reset de senha
+            nova_senha (str): Nova senha em texto plano
 
         Returns:
             PasswordResetResult: Resultado da operação

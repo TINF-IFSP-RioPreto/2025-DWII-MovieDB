@@ -15,19 +15,16 @@ from moviedb.services.email_service import EmailService
 
 
 def anonymous_required(f):
-    """
-    Decorador para restringir acesso a rotas apenas para usuários anônimos.
+    """Decorador para restringir acesso a rotas apenas para usuários anônimos.
 
-    Se o usuário estiver autenticado, exibe uma mensagem de aviso e redireciona para a página
-    inicial; caso contrário, permite o acesso à função decorada.
+    Se o usuário estiver autenticado, exibe uma mensagem de aviso e redireciona para a página inicial; caso contrário, permite o acesso à função decorada.
 
     Args:
         f (function): Função a ser decorada.
 
     Returns:
-        function: Função decorada que verifica se o usuário está autenticado.
+        function: Função decorada que verifica se o usuário não está autenticado.
     """
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
         from flask_login import current_user

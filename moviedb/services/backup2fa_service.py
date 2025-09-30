@@ -12,8 +12,8 @@ from moviedb.models.autenticacao import Backup2FA, User
 
 
 class KeepForDays(Enum):
-    """ Enumeração que define opções para o número de dias para manter dados antes de removê-los
-    fisicamente."""
+    """Enumeração que define opções para o número de dias para manter dados antes de removê-los fisicamente.
+    """
     ZERO = 0
     ONE_WEEK = 7
     TWO_WEEKS = 14
@@ -26,7 +26,8 @@ class KeepForDays(Enum):
 
 
 class Backup2FAService:
-    """Serviço responsável pela gestão de códigos de backup 2FA."""
+    """Serviço responsável pela gestão de códigos de backup 2FA.
+    """
 
     # Conjunto de caracteres sem ambiguidade visual
     CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
@@ -34,15 +35,14 @@ class Backup2FAService:
 
     @staticmethod
     def _obter_tokens(usuario: User, unused_only: bool = False) -> List['Backup2FA']:
-        """
-        Recupera todos os códigos de backup 2FA do usuário.
+        """Recupera todos os códigos de backup 2FA do usuário.
 
         Args:
             usuario (User): Instância do usuário cujos códigos serão listados.
             unused_only (bool): Se True, retorna apenas códigos não utilizados.
 
         Returns:
-            list[Backup2FA]: Lista de códigos de backup 2FA disponíveis.
+            typing.List[Backup2FA]: Lista de códigos de backup 2FA disponíveis.
         """
         if unused_only:
             return list(
@@ -52,7 +52,11 @@ class Backup2FAService:
 
     @staticmethod
     def _gerar_codigo_aleatorio() -> str:
-        """Gera um código aleatório usando charset seguro."""
+        """Gera um código aleatório usando charset seguro.
+
+        Returns:
+            str: Código aleatório gerado.
+        """
         return ''.join(
                 secrets.choice(Backup2FAService.CHARSET)
                 for _ in range(Backup2FAService.CODIGO_LENGTH)
@@ -61,13 +65,14 @@ class Backup2FAService:
     @staticmethod
     def _invalidar_codigo(backup_code: Backup2FA,
                           keep_for_days: KeepForDays = KeepForDays.ONE_MONTH) -> None:
-        """
-        Marca o código como utilizado e define a data de remoção efetiva do banco.
+        """Marca o código como utilizado e define a data de remoção efetiva do banco.
 
         Args:
             backup_code (Backup2FA): Instância do código de backup a ser invalidado.
-            keep_for_days (KeepForDays): Número de dias para manter o código marcado como usado
-                antes de removê-lo fisicamente (default: 30)
+            keep_for_days (KeepForDays): Número de dias para manter o código marcado como usado antes de removê-lo fisicamente. Default: 30.
+
+        Returns:
+            None
         """
         agora = datetime.now()
         backup_code.utilizado = True
@@ -77,15 +82,12 @@ class Backup2FAService:
     @staticmethod
     def consumir_token(usuario: User, token: str,
                        keep_for_days: KeepForDays = KeepForDays.ONE_MONTH) -> bool:
-        """
-        Verifica e consome o token de backup 2FA, marcando-o como utilizado e definindo a data de
-            remoção efetiva do banco.
+        """Verifica e consome/invalida o token de backup 2FA, marcando-o como utilizado e definindo a data de remoção efetiva do banco.
 
         Args:
             usuario (User): Instância do usuário ao qual o código pertence.
             token (str): Código de backup 2FA a ser verificado.
-            keep_for_days (KeepForDays): Número de dias para manter o código marcado como usado
-                antes de removê-lo fisicamente (default: 30)
+            keep_for_days (KeepForDays): Número de dias para manter o código marcado como usado antes de removê-lo fisicamente. Default: 30.
 
         Returns:
             bool: True se o código existir e estiver não utilizado, False caso contrário.
@@ -108,8 +110,7 @@ class Backup2FAService:
 
     @staticmethod
     def contar_tokens_disponiveis(usuario: User) -> int:
-        """
-        Conta a quantidade de códigos de backup 2FA ainda não utilizados do usuário.
+        """Conta a quantidade de códigos de backup 2FA ainda não utilizados do usuário.
 
         Args:
             usuario (User): Instância do usuário cujo códigos serão contados.
@@ -122,13 +123,11 @@ class Backup2FAService:
 
     @staticmethod
     def invalidar_codigos(usuario: User, keep_for_days: KeepForDays = KeepForDays.ONE_MONTH) -> int:
-        """
-        Marca todos os códigos do usuário como utilizados.
+        """Marca todos os códigos do usuário como utilizados.
 
         Args:
             usuario (User): Instância do usuário cujos códigos serão invalidados.
-            keep_for_days (int): Número de dias para manter o código marcado como usado antes de
-                removê-lo fisicamente (default: 30)
+            keep_for_days (KeepForDays): Número de dias para manter o código marcado como usado antes de removê-lo fisicamente. Default: 30.
 
         Returns:
             int: Número de códigos marcados como usados.
@@ -150,18 +149,17 @@ class Backup2FAService:
 
     @staticmethod
     def gerar_novos_codigos(usuario: User, quantidade: int = 5) -> List[str]:
-        """
-        Gera novos códigos de backup, removendo os anteriores não utilizados.
+        """Gera novos códigos de backup, removendo os anteriores não utilizados.
 
         Args:
-            usuario: Instância do usuário
-            quantidade: Número de códigos a gerar
+            usuario (User): Instância do usuário.
+            quantidade (int): Número de códigos a gerar.
 
         Returns:
-            Lista com os códigos em texto plano (para exibir ao usuário)
+            typing.List[str]: Lista com os códigos em texto plano (para exibir ao usuário).
 
         Raises:
-            SQLAlchemyError: Em caso de erro na transação
+            SQLAlchemyError: Em caso de erro na transação.
         """
         try:
             # Remove códigos não utilizados
@@ -190,8 +188,7 @@ class Backup2FAService:
 
     @staticmethod
     def remover_codigos_expirados() -> int:
-        """
-        Remove fisicamente do banco todos os códigos que já passaram da data de remoção.
+        """Remove fisicamente do banco todos os códigos que já passaram da data de remoção.
 
         Idealmente executado por uma tarefa Celery periódica (uma vez ao dia).
 
