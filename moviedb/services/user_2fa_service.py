@@ -7,32 +7,39 @@ import pyotp
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
-from .backup2fa_service import Backup2FAService
-from .qrcode_service import QRCodeConfig, QRCodeService
 from moviedb import db
 from moviedb.models.autenticacao import User
+from .backup2fa_service import Backup2FAService
+from .qrcode_service import QRCodeConfig, QRCodeService
+from .token_service import JWT_action, JWTService
 
 
 class Autenticacao2FA(Enum):
     """ Enumeração que define os resultados possíveis da autenticação de dois fatores."""
-    INVALID_CODE = 0
-    TOTP = 1
-    BACKUP = 2
-    REUSED = 3
-    NOT_ENABLED = 4
-    ENABLING = 5
-    ALREADY_ENABLED = 6
-    ENABLED = 7
-    DISABLED = 8
+    ENABLED = 0
+    NOT_ENABLED = 1
+    ENABLING = 2
+    ALREADY_ENABLED = 3
+    DISABLED = 4
+    INVALID_CODE = 5
+    REUSED = 6
+    TOTP = 7
+    BACKUP = 8
+    MISSING_TOKEN = 9
+    INVALID_TOKEN = 10
+    WRONG_USER = 11
+    UNKNOWN = 99
 
 
 @dataclass
 class TwoFASetupResult:
     """Dados da configuração do 2FA."""
-    status: Autenticacao2FA
+    status: Autenticacao2FA = Autenticacao2FA.UNKNOWN
     secret: str | None = None
     qr_code_base64: str | None = None
     backup_codes: list[str] | None = None
+    token: str | None = None
+    user_id: str | None = None
 
 
 @dataclass
@@ -78,6 +85,9 @@ class User2FAService:
             ValueError: Para parâmetros inválidos
         """
 
+        if usuario is None:
+            raise ValueError("Parâmetro 'usuario' não pode ser None")
+
         if usuario.usa_2fa:
             return TwoFASetupResult(status=Autenticacao2FA.ALREADY_ENABLED)
 
@@ -92,12 +102,20 @@ class User2FAService:
                                                                 user=usuario.email,
                                                                 issuer=app_name,
                                                                 config=qr_config)
+        token = JWTService.create(action=JWT_action.ACTIVATING_2FA,
+                                  sub=usuario.id,
+                                  expires_in=current_app.config.get('2FA_SESSION_TIMEOUT', 90),
+                                  extra_data={
+                                      'tentative_otp' : secret,
+                                      'qr_code_base64': qr_code_base64
+                                  })
         current_app.logger.debug("Iniciado processo de ativação 2FA para %s" % (usuario.email,))
 
         return TwoFASetupResult(
                 status=Autenticacao2FA.ENABLING,
                 secret=secret,
-                qr_code_base64=qr_code_base64)
+                qr_code_base64=qr_code_base64,
+                token=token)
 
     @staticmethod
     def confirmar_ativacao_2fa(usuario: User,
@@ -136,8 +154,8 @@ class User2FAService:
                 quantidade_backup = max(0, min(quantidade_backup, 20))
                 backup_codes = Backup2FAService.gerar_novos_codigos(usuario, quantidade_backup)
                 current_app.logger.debug(
-                    "Gerados %d códigos de reserva para usuário %s." % (quantidade_backup,
-                                                                        usuario.email,))
+                        "Gerados %d códigos de reserva para usuário %s." % (quantidade_backup,
+                                                                            usuario.email,))
 
             db.session.commit()
 
@@ -202,7 +220,9 @@ class User2FAService:
         try:
             # Confirma se 2FA está habilitado
             if not usuario.usa_2fa or not usuario.otp_secret:
-                current_app.logger.warning("Tentativa de uso de 2FA por usuário sem 2FA ativado (%s)." % (usuario.email,))
+                current_app.logger.warning(
+                        "Tentativa de uso de 2FA por usuário sem 2FA ativado (%s)." % (
+                            usuario.email,))
                 return TwoFAValidationResult(
                         success=False,
                         method_used=Autenticacao2FA.NOT_ENABLED,
@@ -213,7 +233,8 @@ class User2FAService:
             # Verifica se o código já foi usado recentemente
             if codigo == usuario.ultimo_otp:
                 current_app.logger.warning(
-                    "Tentativa de uso de código 2FA repetido pelo usuário %s." % (usuario.email,))
+                        "Tentativa de uso de código 2FA repetido pelo usuário %s." % (
+                            usuario.email,))
                 warnings.append("Atenção: Este código já foi utilizado recentemente.")
                 return TwoFAValidationResult(
                         success=False,
@@ -248,9 +269,11 @@ class User2FAService:
             # Tenta código de backup
             if Backup2FAService.consumir_token(usuario, codigo):
                 backup_count = Backup2FAService.contar_tokens_disponiveis(usuario)
-                current_app.logger.debug("Código 2FA reserva validado para usuário %s." % (usuario.email,))
                 current_app.logger.debug(
-                    "Códigos 2FA reservas disponíveis para %s: %d." % (usuario.email, backup_count))
+                        "Código 2FA reserva validado para usuário %s." % (usuario.email,))
+                current_app.logger.debug(
+                        "Códigos 2FA reservas disponíveis para %s: %d." % (usuario.email,
+                                                                           backup_count))
                 warnings.append("Código de backup utilizado")
                 if backup_count == 0:
                     warnings.append("CRÍTICO: Nenhum código de backup restante")
@@ -279,7 +302,7 @@ class User2FAService:
 
             return TwoFAValidationResult(
                     success=False,
-                    method_used=None,
+                    method_used=Autenticacao2FA.UNKNOWN,
                     error_message=f"Erro ao validar código 2FA: {str(e)}",
                     remaining_backup_codes=None,
                     security_warnings=warnings)
@@ -346,3 +369,67 @@ class User2FAService:
                                      codigo: str) -> bool:
         totp = pyotp.TOTP(tentative_secret)
         return totp.verify(codigo, valid_window=1)
+
+    @staticmethod
+    def validar_token_ativacao_2fa(usuario: User, token_sessao: str) -> TwoFASetupResult:
+        """
+        Valida o token de ativação 2FA da sessão e extrai os dados necessários.
+
+        Args:
+            usuario: Instância do usuário atual
+            token_sessao: Token JWT da sessão ('activating_2fa_token')
+
+        Returns:
+            TwoFASetupResult: Resultado da validação com secret, qr_code e status
+        """
+        if not token_sessao:
+            current_app.logger.warning(
+                "Tentativa de ativação 2FA sem token de sessão para usuário %s" % (usuario.email,))
+            return TwoFASetupResult(status=Autenticacao2FA.MISSING_TOKEN)
+
+        # Verifica o token JWT
+        dados_token = JWTService.verify(token_sessao)
+        if not dados_token.get('valid', False):
+            current_app.logger.warning(
+                "Token de ativação 2FA inválido para usuário %s" % (usuario.email,))
+            return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
+
+        # Valida a ação do token
+        if dados_token.get('action') != JWT_action.ACTIVATING_2FA:
+            current_app.logger.warning(
+                "Token com ação inválida para ativação 2FA: %s" % (dados_token.get('action'),))
+            return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
+
+        # Valida extra_data
+        extra_data = dados_token.get('extra_data')
+        if not extra_data:
+            current_app.logger.warning(
+                "Token de ativação 2FA sem extra_data para usuário %s" % (usuario.email,))
+            return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
+
+        # Extrai dados necessários
+        user_id = dados_token.get('sub')
+        tentative_otp = extra_data.get('tentative_otp')
+        qr_code_base64 = extra_data.get('qr_code_base64')
+
+        # Valida presença dos dados
+        if not tentative_otp or not qr_code_base64:
+            current_app.logger.warning(
+                "Token de ativação 2FA incompleto para usuário %s" % (usuario.email,))
+            return TwoFASetupResult(status=Autenticacao2FA.INVALID_TOKEN)
+
+        # Valida se o token é para o usuário correto
+        if str(usuario.id) != str(user_id):
+            current_app.logger.warning(
+                "Tentativa de uso de token 2FA de outro usuário por %s" % (usuario.email,))
+            return TwoFASetupResult(status=Autenticacao2FA.WRONG_USER)
+
+        current_app.logger.debug(
+            "Token de ativação 2FA validado com sucesso para usuário %s" % (usuario.email,))
+
+        return TwoFASetupResult(
+            status=Autenticacao2FA.ENABLING,
+            secret=tentative_otp,
+            qr_code_base64=qr_code_base64,
+            user_id=user_id
+        )

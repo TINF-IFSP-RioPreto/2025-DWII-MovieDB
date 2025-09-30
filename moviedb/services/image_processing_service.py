@@ -33,7 +33,7 @@ class ImageProcessingService:
     ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp']
 
     # Tamanhos padrão
-    DEFAULT_AVATAR_SIZE = 32
+    DEFAULT_AVATAR_SIZE = 64
     DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
     DEFAULT_MAX_DIMENSIONS = (2048, 2048)
 

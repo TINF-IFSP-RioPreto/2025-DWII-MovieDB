@@ -122,46 +122,38 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
 
         Atualiza os campos relacionados à foto do usuário. Se o valor for None,
         remove a foto e limpa os campos associados. Caso contrário, tenta armazenar
-        a foto em base64 e o tipo MIME. Lida com o caso em que value não possui os
-        métodos/atributos esperados, registrando o erro.
+        a foto em base64 e o tipo MIME.
+
+        IMPORTANTE: Este setter NÃO realiza commit. O chamador é responsável por
+        gerenciar a transação (commit/rollback).
 
         Args:
             value: um objeto com métodos `read()` e atributo `mimetype`, ou None.
+
+        Raises:
+            ImageProcessingError: Se houver erro ao processar a imagem
+            ValueError: Se o valor fornecido for inválido
         """
+        if value is None:
+            self.com_foto = False
+            self.foto_base64 = None
+            self.avatar_base64 = None
+            self.foto_mime = None
+        else:
+            resultado = ImageProcessingService.processar_upload_foto(value)
+            self.foto_base64 = resultado.foto_base64
+            self.avatar_base64 = resultado.avatar_base64
+            self.foto_mime = resultado.mime_type
+            self.com_foto = True
 
-        try:
-            if value is None:
-                self.com_foto = False
-                self.foto_base64 = None
-                self.avatar_base64 = None
-                self.foto_mime = None
-            else:
-                resultado = ImageProcessingService.processar_upload_foto(value)
-                self.foto_base64 = resultado.foto_base64
-                self.avatar_base64 = resultado.avatar_base64
-                self.foto_mime = resultado.mime_type
-                self.com_foto = True
-
-                db.session.commit()
-
-                current_app.logger.info(
-                        "Foto processada para usuário %s: %s %s -> %s (avatar)" % (
-                            self.email,
-                            resultado['formato_original'],
-                            resultado['dimensoes_originais'],
-                            resultado['dimensoes_avatar']
-                        )
-                )
-
-        except (ImageProcessingError, ValueError) as e:
-            db.session.rollback()
-            current_app.logger.error(
-                "Erro ao processar foto do usuário %s: %s" % (self.email, str(e)))
-            raise e
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            raise SQLAlchemyError(
-                "Erro de banco de dados ao processar foto do usuário: %s" % (str(e))) from e
+            current_app.logger.info(
+                    "Foto processada para usuário %s: %s %s -> %s (avatar)" % (
+                        self.email,
+                        resultado.formato_original,
+                        resultado.dimensoes_originais,
+                        resultado.dimensoes_avatar
+                    )
+            )
 
     @property
     def otp_secret(self):
