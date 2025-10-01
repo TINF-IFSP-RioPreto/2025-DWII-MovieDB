@@ -28,9 +28,16 @@ qrcode==8.2
 # https://pillow.readthedocs.io/en/stable/
 Pillow==11.3.0
 # Necessário para a criptografia de colunas no banco de dados
-cryptography==46.0.1
-
-
-pytest==8.4.2
-pytest-cov==7.0.0
-pytest-mock==3.15.1
+cryptography==46.0.2
+# Interface para o Redis
+# https://redis.readthedocs.io/en/latest/
+redis==6.4.0
+# Biblioteca de concorrência usada pelo Celery
+# https://www.gevent.org/
+gevent==25.9.1
+# Fila de tarefas assíncronas
+# https://docs.celeryq.dev/en/stable/
+celery==5.5.3
+# Geração de documentação automática
+# https://pdoc.dev/
+pdoc==15.0.4

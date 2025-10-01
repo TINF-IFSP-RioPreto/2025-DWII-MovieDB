@@ -72,9 +72,42 @@ você deve seguir os seguintes passos:
    ```
 **Se a sua aplicação já tem migrações criadas (há arquivos no diretório `migrations\versions`), não execute os passos 2, 3 e 4. Apenas execute o passo 5 para aplicar as migrações ao banco de dados.**
 
-## Exxecução da aplicação
+## Execução da aplicação
 
 1. Agora, você pode rodar a aplicação:
    ```bash
    flask run
    ```
+
+## Executando o Celery
+
+A aplicação utiliza Celery para executar tarefas assíncronas e agendadas. Para que as tarefas funcionem corretamente, você precisa executar dois processos do Celery:
+
+### Worker (Processa as tarefas)
+
+O worker é responsável por executar as tarefas assíncronas. Execute o seguinte comando:
+
+- No Windows:
+  ```bash
+  celery -A celery_app:celery_app worker --loglevel=info --pool=gevent --concurrency=10 --without-gossip --without-mingle --without-heartbeat -E
+  ```
+
+- No Linux:
+  ```bash
+  celery -A celery_app:celery_app worker --loglevel=info --concurrency=10 --without-gossip --without-mingle --without-heartbeat -E
+  ```
+
+### Beat (Agendador de tarefas)
+
+O beat é responsável por agendar e disparar tarefas periódicas listados no arquivo de configuração da aplicação. Execute em outro terminal:
+
+```bash
+celery -A celery_app:celery_app beat --loglevel=info
+```
+
+**Nota:** Você precisará de três terminais abertos simultaneamente:
+1. Um para o Flask (`flask run`)
+2. Um para o Celery Worker
+3. Um para o Celery Beat
+
+**Requisito:** Certifique-se de que o Redis esteja rodando antes de iniciar o Celery (conforme configurado em `broker_url` e `result_backend` no arquivo de configuração).

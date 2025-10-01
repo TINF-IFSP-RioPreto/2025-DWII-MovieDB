@@ -32,6 +32,8 @@ pip install -r requirements.txt
    - `DATABASE_ENCRYPTION_KEY`: Key for encrypting sensitive database fields
    - `DATABASE_ENCRYPTION_SALT`: Salt for encryption key derivation
    - `POSTMARK_SERVER_TOKEN`: Email service token (if using email features)
+   - `CELERY`: Celery configuration object (broker_url, result_backend, beat_schedule, etc.)
+     - Requires Redis running on `broker_url` and `result_backend`
 
 ### Database Migration
 
@@ -64,10 +66,30 @@ flask db upgrade
 flask run
 ```
 
+### Running Celery (Background Tasks)
+
+The application uses Celery for asynchronous and scheduled tasks. Redis must be running before starting Celery.
+
+**Start the worker** (processes tasks):
+```bash
+# Windows
+celery -A celery_app:celery_app worker --loglevel=info --pool=gevent --concurrency=10 --without-gossip --without-mingle --without-heartbeat -E
+
+# Linux
+celery -A celery_app:celery_app worker --loglevel=info --concurrency=10 --without-gossip --without-mingle --without-heartbeat -E
+```
+
+**Start the beat scheduler** (triggers scheduled tasks):
+```bash
+celery -A celery_app:celery_app beat --loglevel=info
+```
+
+**Note:** You need three separate terminals: Flask, Celery Worker, and Celery Beat.
+
 ## Architecture
 
 ### Application Factory Pattern
-- Entry point: `moviedb/app.py` calls `create_app()` from `moviedb/__init__.py`
+- Entry point: `app.py` calls `create_app()` from `moviedb/__init__.py`
 - `create_app()` initializes all Flask extensions, registers blueprints, and configures the app
 - Configuration loaded from JSON files in `instance/` directory
 
@@ -78,6 +100,13 @@ flask run
 - `migrate`: Flask-Migrate for database migrations
 - `login_manager`: Flask-Login for session management
 - `bootstrap`: Bootstrap-Flask for UI styling
+
+**Celery Integration** (`moviedb/infra/celery.py`):
+- Celery initialized via `celery_init_app()` in `create_app()`
+- Uses Flask application context for tasks
+- Auto-discovers tasks in `moviedb.tasks` package
+- Configuration loaded from `CELERY` key in config JSON
+- Entry point: `celery_app.py` for worker/beat processes
 
 **Blueprints** (`moviedb/blueprints/`):
 - `auth`: Authentication routes (login, register, 2FA, password reset, profile)
@@ -123,14 +152,12 @@ flask run
 - Automatic avatar generation from uploaded photos
 - MIME type validation and dimension constraints
 
-## Testing
-
-```bash
-pytest
-pytest --cov=moviedb  # with coverage
-pytest moviedb/tests/test_specific.py  # single file
-pytest -v  # verbose output
-```
+**Celery Tasks** (`moviedb/tasks/`):
+- `send_email_task`: Asynchronous email sending with retry logic (max 3 retries, exponential backoff)
+- `remover_codigos_expirados_task`: Scheduled task to remove expired 2FA backup codes
+- All tasks use `@shared_task` decorator and Flask application context
+- Tasks auto-discovered via `celery_init_app()` in `moviedb/infra/celery.py`
+- Scheduled tasks configured in `CELERY.beat_schedule` in config JSON
 
 ## Code Conventions
 
@@ -149,3 +176,5 @@ Follow PEP 8 and the guidelines in `.github/global-copilot-instructions.md`:
 - Password validation rules are configurable (min length, character requirements)
 - The `anonymous_required` decorator restricts routes to non-authenticated users
 - User sessions are invalidated when password changes (via alternative token pattern)
+- Redis must be running for Celery to function (default: redis://127.0.0.1:6379/0)
+- Celery tasks require both worker and beat processes to be running for scheduled tasks

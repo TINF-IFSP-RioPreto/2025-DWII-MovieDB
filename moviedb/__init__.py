@@ -9,6 +9,7 @@ from functools import wraps
 
 from flask import Flask
 
+from moviedb.infra.celery import celery_init_app
 from moviedb.infra import app_logging
 from moviedb.infra.modulos import bootstrap, db, login_manager, migrate
 from moviedb.services.email_service import EmailService
@@ -75,6 +76,12 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
                          "presente no arquivo de configuração")
         sys.exit(1)
 
+    if "DATABASE_ENCRYPTION_KEY" not in app.config or app.config.get(
+            "DATABASE_ENCRYPTION_KEY") is None:
+        app.logger.fatal(
+                "A chave 'DATABASE_ENCRYPTION_KEY' não está presente no arquivo de configuração")
+        sys.exit(1)
+
     if "APP_HOST" not in app.config:
         app.logger.warning("A chave 'APP_HOST' não está presente no "
                            "arquivo de configuração. Utilizando 0.0.0.0")
@@ -92,12 +99,6 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
         app.logger.warning("Para não invalidar os tokens gerados nesta instância da aplicação, "
                            "adicione a chave acima ao arquivo de configuração")
         app.config["SECRET_KEY"] = secret_key
-
-    if "DATABASE_ENCRYPTION_KEY" not in app.config or app.config.get(
-            "DATABASE_ENCRYPTION_KEY") is None:
-        app.logger.fatal(
-                "A chave 'DATABASE_ENCRYPTION_KEY' não está presente no arquivo de configuração")
-        sys.exit(1)
 
     if "DATABASE_ENCRYPTION_SALT" not in app.config or app.config.get(
             "DATABASE_ENCRYPTION_SALT") is None:
@@ -134,13 +135,11 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     app.register_blueprint(root_bp)
 
     app.logger.debug("Definindo processadores de contexto")
-
     @app.context_processor
     def inject_globals():
         return dict(app_config=app.config)
 
     app.logger.debug("Registrando o callback do login manager")
-
     @login_manager.user_loader
     def load_user(user_id):  # https://flask-login.readthedocs.io/en/latest/#alternative-tokens
         import uuid
@@ -157,6 +156,9 @@ def create_app(config_filename: str = 'config.dev.json') -> Flask:
     # Configura o serviço de email
     email_service = EmailService.create_from_config(app.config)
     app.extensions['email_service'] = email_service
+
+    app.logger.debug("Registrando Celery")
+    celery_init_app(app)
 
     app.logger.info("Aplicação configurada com sucesso")
     return app

@@ -23,5 +23,25 @@
   "DATABASE_ENCRYPTION_SALT": "stable_salt_for_app_",
   "SEND_MAIL": false,
   "EMAIL_PROVIDER": "postmark",
-  "POSTMARK_SERVER_TOKEN": "ColoqueOTokenAqui"
+  "POSTMARK_SERVER_TOKEN": "ColoqueOTokenAqui",
+  "CELERY": {
+    "broker_url": "redis://127.0.0.1:6379/0",
+    "result_backend": "redis://127.0.0.1:6379/0",
+    "task_serializer": "json",
+    "result_serializer": "json",
+    "accept_content": [
+      "json"
+    ],
+    "timezone": "America/Sao_Paulo",
+    "enable_utc": true,
+    "beat_schedule": {
+      "remover-codigos-expirados-diariamente": {
+        "task": "moviedb.tasks.maintenance_tasks.remover_codigos_expirados_task",
+        "schedule": {
+          "minute": "0",
+          "hour": "3"
+        }
+      }
+    }
+  }
 }
