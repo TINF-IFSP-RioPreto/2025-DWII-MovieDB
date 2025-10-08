@@ -34,7 +34,7 @@ def criar_generos():
 
     generos = {}
     for g in generos_data:
-        genero = Genero.query.filter_by(nome=g["nome"]).first()
+        genero = Genero.get_first_or_none_by("nome", g["nome"])
         if not genero:
             genero = Genero(nome=g["nome"], descricao=g["descricao"], ativo=True)
             db.session.add(genero)
@@ -61,7 +61,7 @@ def criar_funcoes_tecnicas():
 
     funcoes = {}
     for f in funcoes_data:
-        funcao = FuncoesTecnicas.query.filter_by(nome=f["nome"]).first()
+        funcao = FuncoesTecnicas.get_first_or_none_by("nome", f["nome"])
         if not funcao:
             funcao = FuncoesTecnicas(nome=f["nome"], descricao=f["descricao"], ativa=True)
             db.session.add(funcao)
@@ -215,7 +215,7 @@ def criar_pessoas_e_atores():
 
     for p in pessoas_data:
         # Verificar se pessoa já existe
-        pessoa = Pessoa.query.filter_by(nome=p["nome"]).first()
+        pessoa = Pessoa.get_first_or_none_by("nome", p["nome"])
 
         if not pessoa:
             nascimento = datetime.strptime(p["nascimento"], "%Y-%m-%d") if p["nascimento"] else None
@@ -536,7 +536,7 @@ def criar_filmes(generos, pessoas, atores, funcoes):
 
     for f_data in filmes_data:
         # Verificar se filme já existe
-        filme = Filme.query.filter_by(titulo_original=f_data["titulo_original"]).first()
+        filme = Filme.get_first_or_none_by("titulo_original", f_data["titulo_original"])
 
         if filme:
             print(f"\n  ⊙ {f_data['titulo_original']} (já existe)")

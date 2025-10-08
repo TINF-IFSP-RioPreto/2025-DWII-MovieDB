@@ -21,13 +21,13 @@ def criar_avaliacoes():
     print("⭐ Criando avaliações de exemplo...")
 
     # Buscar todos os filmes
-    filmes = Filme.query.all()
+    filmes = list(Filme.get_all())
     if not filmes:
         print("❌ Nenhum filme encontrado. Execute seed_data.py primeiro.")
         return
 
     # Buscar todos os usuários
-    usuarios = User.query.all()
+    usuarios = list(User.get_all())
     if not usuarios:
         print("❌ Nenhum usuário encontrado. Crie usuários na aplicação primeiro.")
         return
@@ -64,10 +64,10 @@ def criar_avaliacoes():
 
         for usuario in usuarios_avaliar:
             # Verificar se já existe avaliação
-            avaliacao_existe = Avaliacao.query.filter_by(
-                filme_id=filme.id,
-                usuario_id=usuario.id
-            ).first()
+            avaliacao_existe = Avaliacao.get_by_composed_id({
+                "filme_id": filme.id,
+                "usuario_id": usuario.id
+            })
 
             if avaliacao_existe:
                 continue
@@ -136,10 +136,10 @@ def exibir_estatisticas():
     print("ESTATÍSTICAS DAS AVALIAÇÕES")
     print("=" * 80 + "\n")
 
-    filmes = Filme.query.all()
+    filmes = list(Filme.get_all())
 
     for filme in filmes:
-        avaliacoes = Avaliacao.query.filter_by(filme_id=filme.id).all()
+        avaliacoes = list(Avaliacao.get_all_by({"filme_id": filme.id}))
 
         if not avaliacoes:
             continue
