@@ -4,9 +4,9 @@ Todas as operações devem ser executadas:
 1. Dentro do ambiente virtual da aplicação.
 2. No diretório raiz da aplicação (onde está o arquivo `app.py`)
 
-## O Abiente virtual
+## O Ambiente virtual
 
-Para verificar se o ambiente virutal está ativo, o prompt do terminal deve estar
+Para verificar se o ambiente virtual está ativo, o prompt do terminal deve estar
 precedido pelo nome do ambiente virtual, por exemplo: `(.venv) user@machine:~/path/to/project$` no linux
 ou `(.venv) C:\path\to\project>` no Windows.
 
@@ -36,7 +36,7 @@ No PyCharm, você pode configurar o ambiente virtual nas configurações do proj
 
 Para que a aplicação possa ser executado, é preciso que haja um arquivo JSON de configuração chamado
 `config.dev.json` no diretório `instance`. Você pode criar esse arquivo copiando o conteúdo do
-arquivo `config.sample.json` e ajustando os valores conforme necessário.
+arquivo `config.sample.json` e ajustando os valores conforme necessário. 
 
 1. Instale as dependências do projeto:
    ```bash

@@ -108,7 +108,7 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
         Returns:
             typing.Optional[User]: O usuário encontrado, ou None.
         """
-        return db.session.scalar(select(cls).where(User.email_normalizado.is_(email)))
+        return db.session.scalar(select(cls).where(User.email_normalizado == email))
 
     def check_password(self, password) -> bool:
         from werkzeug.security import check_password_hash
@@ -192,6 +192,9 @@ class User(db.Model, BasicRepositoryMixin, UserMixin, AuditMixin):
     @otp_secret.setter
     def otp_secret(self, value: Optional[str] = None):
         self._otp_secret = value
+
+    # Relacionamentos: um usuário pode avaliar vários filmes
+    avaliacoes: Mapped[list["Avaliacao"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")
 
 
 class Backup2FA(db.Model, BasicRepositoryMixin, AuditMixin):
